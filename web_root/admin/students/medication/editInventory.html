@@ -22,10 +22,6 @@
             <div id="dose-group">
                 <label id="dose-label">Dosage <span id="dose-req" class="req"><em
                             id="dose-req-mark">*</em></span></label>
-                <label for="variable-dose-input">
-                    <input id="variable-dose-input" type="checkbox" ng-model="vm.medicationRecord.variable_dose"
-                        ng-true-value="1" ng-false-value="0" ng-change="vm.onVariableDoseChanged()"> Variable dose
-                </label>
                 <div id="dose-input-group" class="dose-group">
                     <span ng-if="$root.isVariableDose(vm.medicationRecord)">Varies ·</span>
                     <input id="dose-amt-input" type="text" class="dose-input" ng-model="vm.medicationRecord.dose_amount"
@@ -54,6 +50,10 @@
                             ng-disabled="vm.optionEditors.dose_unit.saving">Cancel</button>
                     </div>
                 </div>
+                <label for="variable-dose-input" class="variable-dose-option">
+                    <input id="variable-dose-input" type="checkbox" ng-model="vm.medicationRecord.variable_dose"
+                        ng-true-value="1" ng-false-value="0" ng-change="vm.onVariableDoseChanged()"> Variable dose
+                </label>
                 <div class="feedback-alert option-add-error" role="alert"
                     ng-if="vm.optionEditors.dose_unit.error">{{vm.optionEditors.dose_unit.error}}</div>
                 <div class="feedback-alert option-add-error" role="alert"

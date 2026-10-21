@@ -1,16 +1,16 @@
-# Variable prescribed doses — 26.9.8.2
+# Variable prescribed doses — 26.9.8.3
 
 Branch: `feature/variable-medication-dose` in `cdol_health` and the companion
 `cdol_pscb_custom_reports` repository (report plugin 26.10.1.3).
 
 ## Install on the test server
 
-1. Keep the existing CDOL CSS dependency installed (26.9.1.1 for the included
-   Health Forms document-preview work). This feature adds no stylesheet.
-2. Install **CDOL Health 26.9.8.2**, including its schema updates. Confirm
+1. Keep the existing CDOL CSS dependency installed (26.9.1.3 for the included
+   Health Forms document-preview work). The Variable dose option uses shared CSS to appear below the dosage controls in smaller, italic gray text.
+2. Install **CDOL Health 26.9.8.3**, including its schema updates. Confirm
    `variable_dose` Integer exists on `u_student_medication` and
    `u_student_med_inv_txn` before using the new pages or reports.
-3. Install **CDOL Health - Data Access 26.9.8.2**.
+3. Install **CDOL Health - Data Access 26.9.8.3**.
 4. Install **CDOL PSCB Custom Reports 26.10.1.3** after the Health schema.
 5. Refresh cached pages/scripts. No record conversion runs during installation.
 
