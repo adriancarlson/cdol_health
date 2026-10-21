@@ -52,7 +52,7 @@
                 </div>
                 <label for="variable-dose-input" class="variable-dose-option">
                     <input id="variable-dose-input" type="checkbox" ng-model="vm.medicationRecord.variable_dose"
-                        ng-true-value="1" ng-false-value="0" ng-change="vm.onVariableDoseChanged()"> Variable dose?
+                        ng-true-value="1" ng-false-value="0" ng-change="vm.onVariableDoseChanged()"> <span class="variable-dose-label">Variable dose?</span>
                 </label>
                 <div class="feedback-alert option-add-error" role="alert"
                     ng-if="vm.optionEditors.dose_unit.error">{{vm.optionEditors.dose_unit.error}}</div>

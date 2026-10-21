@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://plugin.powerschool.pearson.com"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="26.9.8.6" name="CDOL Health" description="Custom health forms, logs, and medication workflows" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd">
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="26.9.8.7" name="CDOL Health" description="Custom health forms, logs, and medication workflows" xsi:schemaLocation="http://plugin.powerschool.pearson.com plugin.xsd">
 	<publisher name="Adrian Carlson">
 		<contact email="adrian-carlson@cdolinc.net"/>
 	</publisher>
