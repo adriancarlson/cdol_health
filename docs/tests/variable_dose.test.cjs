@@ -147,30 +147,30 @@ test('new administrations snapshot variable dose and deduct only the actual ente
     assert.equal(calls[0].payload.quantity_change, -3.5)
 })
 
-test('Given dose-only correction requires a reason and POSTs zero inventory change', () => {
+test('administration corrections preserve prescribed dose and cannot change it through the correction record', () => {
     const {instance: correction, events, calls} = instantiate('administrationCorrectionController')
     events['open.drawer.event'](() => {}, {data: {administration: transaction({root_transaction_id: 11, quantity_administered: 4})}})
     correction.correctionRecord.variable_dose = 1
+    correction.correctionRecord.correction_reason = 'Correct event notes'
     assert.equal(correction.isFormValid(), false)
-    correction.correctionRecord.correction_reason = 'Placeholder clarified'
+    correction.correctionRecord.notes = 'Corrected event notes'
     assert.equal(correction.isFormValid(), true)
     events['save.drawer.event'](() => {})
-    assert.equal(calls[0].method, 'POST')
-    assert.equal(calls[0].payload.variable_dose, 1)
+    assert.equal(calls[0].payload.variable_dose, 0)
+    assert.equal(calls[0].payload.dose_amount, 99)
     assert.equal(calls[0].payload.quantity_change, 0)
-    assert.equal(calls[0].payload.administration_quantity, 4)
-    assert.equal(calls[0].payload.reversal_of_transaction_id, 11)
 })
 
-test('Not Given dose-only correction POSTs zero change without requiring a changed reason code', () => {
+test('Not Given corrections preserve the original prescribed dose snapshot', () => {
     const {instance: expected, events, calls} = instantiate('expectedAdministrationController')
-    events['open.drawer.event'](() => {}, {data: {notGiven: transaction({root_transaction_id: 11, is_not_given: true, not_given_reason_code: 'absent'})}})
-    expected.record.variable_dose = 1
-    expected.record.correction_reason = 'Placeholder clarified'
+    events['open.drawer.event'](() => {}, {data: {notGiven: transaction({root_transaction_id: 11, is_not_given: true, not_given_reason_code: 'absent', variable_dose: 1, dose_amount: null})}})
+    expected.record.variable_dose = 0
+    expected.record.dose_amount = 99
+    expected.record.notes = 'Corrected event notes'
+    expected.record.correction_reason = 'Correct event notes'
     assert.equal(expected.isFormValid(), true)
     events['save.drawer.event'](() => {})
-    assert.equal(calls[0].payload.transaction_type, 'NON_ADMINISTRATION_CORRECTION')
     assert.equal(calls[0].payload.variable_dose, 1)
+    assert.equal(calls[0].payload.dose_amount, '')
     assert.equal(calls[0].payload.quantity_change, 0)
-    assert.equal(calls[0].payload.not_given_reason_code, 'absent')
 })

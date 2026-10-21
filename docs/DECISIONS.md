@@ -148,9 +148,9 @@ Variable prescribed doses (October 21, 2026): add `variable_dose` Integer to med
 snapshots. Use 1 for variable, explicit 0 for new fixed snapshots, and interpret legacy null as fixed. Keep numeric
 `dose_amount` blank for variable doses, retain `dose_unit`, and display `Varies · [unit]`. Use existing Medication Notes
 for authorized instructions; no separate instructions field in this release. Do not change frequency or calculate an
-actual dose. Nurses enter the actual quantity. Clarify historical placeholder values through individual, reason-required
-append-only corrections; never interpret 99 globally or rewrite original transactions. Full bulk amendment remains a
-possible later enhancement.
+actual dose. Nurses enter the actual quantity. The October 21 follow-up removes prescribed-dose and mode editors from administration correction drawers.
+Ordinary corrections preserve their prescribed snapshots. Historical repair is handled individually by the user;
+no automatic conversion or bulk amendment is implemented.
 
 ## Superseded or rejected approaches
 

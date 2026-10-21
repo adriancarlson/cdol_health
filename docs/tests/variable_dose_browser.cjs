@@ -96,13 +96,15 @@ async function main() {
         const correction = fs.readFileSync(path.join(medicationDir, 'correctAdministration.html'), 'utf8')
         await page.evaluate(html => mount(html, {administration: {...medication, root_transaction_id: 11, quantity_administered: 4,
             event_date: '2026-10-01', event_time: 43200, users_dcid: 6}}), correction)
-        await page.locator('#correction-variable-dose').check()
+        assert.equal(await page.locator('#correction-variable-dose').count(), 0)
+        assert.equal(await page.locator('#correction-dose-amount').count(), 0)
+        await page.locator('#administration-correction-notes-row textarea').fill('Corrected event notes')
         await page.locator('#administration-correction-reason').fill('Placeholder clarified against authorized plan.')
         await page.screenshot({path: path.join(previewDir, 'correct-variable-dose.png'), fullPage: true})
         await page.evaluate(() => { events['save.drawer.event'](() => {}); rs.$digest() })
         const corrected = await page.evaluate(() => calls[calls.length - 1])
         assert.equal(corrected.payload.quantity_change, 0)
-        assert.equal(corrected.payload.variable_dose, 1)
+        assert.equal(corrected.payload.variable_dose, 0)
         assert.equal(corrected.payload.administration_quantity, 4)
 
         const administration = fs.readFileSync(path.join(medicationDir, 'administerMedication.html'), 'utf8')

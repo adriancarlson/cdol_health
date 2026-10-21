@@ -2103,13 +2103,10 @@ define([
 		const hasChangedNotGiven = () => {
 			if (!vm.isCorrection || vm.record.resolution_type === 'given') return true
 			return String(vm.record.not_given_reason_code || '') !== String(vm.administration.not_given_reason_code || '') ||
-				String(vm.record.notes || '').trim() !== String(vm.administration.notes || '').trim() ||
-				isVariableDose(vm.record) !== isVariableDose(vm.administration) ||
-				(!isVariableDose(vm.record) && Number(vm.record.dose_amount) !== Number(vm.administration.dose_amount))
+				String(vm.record.notes || '').trim() !== String(vm.administration.notes || '').trim()
 		}
 		vm.isFormValid = () => {
 			if (!vm.administration || vm.saveInProgress || vm.reasonEditor.saving || vm.reasonEditor.visible) return false
-			if (vm.isCorrection && !isValidPrescribedDose(vm.record)) return false
 			if (vm.isCorrection && !String(vm.record.correction_reason || '').trim()) return false
 			if (vm.record.resolution_type === 'given') {
 				const quantity = normalizedQuantity()
@@ -2131,8 +2128,6 @@ define([
 			const notGiven = Boolean(administration && administration.is_not_given)
 			vm.record = {
 				resolution_type: notGiven ? 'not_given' : '',
-				...prescribedDoseFields(administration || {}),
-				dose_unit: administration && administration.dose_unit,
 				quantity: '',
 				event_date: formatDateForInput(administration && administration.event_date),
 				event_time: $rootScope.getCurrentTime(),
@@ -2163,7 +2158,7 @@ define([
 
 		const snapshotFields = () => ({
 			medication_name: vm.administration.medication_name,
-			...prescribedDoseFields(vm.isCorrection ? vm.record : vm.administration),
+			...prescribedDoseFields(vm.administration),
 			dose_unit: vm.administration.dose_unit,
 			inventory_unit: vm.administration.inventory_unit,
 			route: vm.administration.route,
@@ -2322,9 +2317,7 @@ define([
 					normalizeDateForComparison(vm.correctionRecord.event_date) !== normalizeDateForComparison(vm.administration.event_date) ||
 					normalizeTime(vm.correctionRecord.event_time) !== secondsToTime12(vm.administration.event_time) ||
 					String(vm.correctionRecord.users_dcid) !== String(vm.administration.users_dcid) ||
-					String(vm.correctionRecord.notes || '').trim() !== String(vm.administration.notes || '').trim() ||
-					isVariableDose(vm.correctionRecord) !== isVariableDose(vm.administration) ||
-					(!isVariableDose(vm.correctionRecord) && Number(vm.correctionRecord.dose_amount) !== Number(vm.administration.dose_amount))
+					String(vm.correctionRecord.notes || '').trim() !== String(vm.administration.notes || '').trim()
 				)
 			)
 		}
@@ -2332,7 +2325,6 @@ define([
 		vm.isFormValid = () => {
 			if (!vm.administration || vm.administration.is_entered_in_error || !correctionReason() || vm.saveInProgress) return false
 			if (vm.mode === 'void') return true
-			if (!isValidPrescribedDose(vm.correctionRecord)) return false
 
 			return Boolean(
 				normalizedQuantity() !== null &&
@@ -2351,8 +2343,6 @@ define([
 		const initializeRecord = administration => {
 			vm.correctionRecord = {
 				quantity: administration ? administration.quantity_administered : '',
-				...prescribedDoseFields(administration || {}),
-				dose_unit: administration && administration.dose_unit,
 				event_date: administration ? formatDateForInput(administration.event_date) : '',
 				event_time: administration ? secondsToTime12(administration.event_time) : '',
 				users_dcid: administration ? administration.users_dcid : '',
@@ -2394,7 +2384,7 @@ define([
 				users_dcid: vm.correctionRecord.users_dcid,
 				notes: String(vm.correctionRecord.notes || '').trim(),
 				medication_name: vm.administration.medication_name,
-				...prescribedDoseFields(vm.mode === 'void' ? vm.administration : vm.correctionRecord),
+				...prescribedDoseFields(vm.administration),
 				dose_unit: vm.administration.dose_unit,
 				inventory_unit: vm.administration.inventory_unit,
 				route: vm.administration.route,

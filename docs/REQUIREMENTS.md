@@ -37,10 +37,10 @@ the nurse to Add Inventory on the existing medication. A fixed and variable defi
 Variable dose hides the numeric amount, clears it on save, retains the dose unit, and displays `Varies · [unit]`.
 Medication Notes holds the authorized dosing instructions or plan reference. Actual Quantity Administered remains a
 required positive number and is entered independently on every administration. Frequency remains independent of mode.
-No numeric value, including 99, automatically means variable. Existing historical snapshots change only through an
-explicit, reason-required, append-only Given or Not Given correction. A dose-only correction must leave actual quantity,
-inventory balances, and daily resolution unchanged. Corrections affect only the selected event; no automatic bulk
-migration runs on installation or medication save.
+No numeric value, including 99, automatically means variable. The Variable dose control exists only in Inventory.
+The Administration table displays `Varies` for variable snapshots. Administration correction drawers do not edit
+prescribed dose or dose mode; they preserve the existing event snapshot. Historical repair is handled individually
+by the user. No automatic migration runs on installation or medication save.
 
 ## 2. Frequency
 

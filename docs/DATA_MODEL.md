@@ -155,9 +155,9 @@ Variable prescribed doses display `Varies · [dose unit]`. Their numeric `dose_a
 Medication Notes holds the authorized dosing instructions or plan reference and is shown when entering a variable-dose
 administration. These medication notes are not added to historical administration notes or snapshotted as instructions.
 Every new Given, Not Given, conversion, correction, and void snapshots the prescribed-dose mode. Historical numeric
-snapshots remain fixed regardless of later medication edits. A dose-only correction appends the existing correction
-transaction type with zero `quantity_change`; its effective mode replaces the original, whose data remains immutable.
-Corrections show the previous and corrected prescribed descriptions in the administration audit when they differ.
+snapshots remain fixed regardless of later medication edits. Ordinary correction drawers preserve the event's prescribed
+snapshot and do not expose prescribed-dose or mode editing. Existing append-only dose corrections remain readable for
+compatibility, but this release does not create them through the UI. Historical repair is handled separately by the user.
 The UI sends an empty string to clear `dose_amount` because the API service omits null values. Installed schema API
 clearing and Oracle execution must be verified on the test server.
 
