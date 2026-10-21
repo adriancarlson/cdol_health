@@ -12,7 +12,7 @@ const between = (start, end) => {
     return source.slice(from, to)
 }
 const helpers = between('const normalizeDateKey =', 'const secondsToTime12 =')
-const dose = vm.runInNewContext(helpers + '\n({isVariableDose, isValidPrescribedDose, prescribedDoseFields, resolvePrescribedDose, medicationDoseDisplay})')
+const dose = vm.runInNewContext(helpers + '\n({isVariableDose, isValidPrescribedDose, prescribedDoseFields, resolvePrescribedDose, medicationDoseDisplay, administrationDoseDisplay})')
 const reduce = vm.runInNewContext(helpers + '\nconst $rootScope = {medicationDoseDisplay};\n' +
     between('const prepareAdministrationHistory =', 'const prepareAdministrationMedicationOptions =') + '\nprepareAdministrationHistory')
 const prepareInventory = vm.runInNewContext(
@@ -76,11 +76,14 @@ test('fixed doses, variable flags, and blank numeric snapshots have distinct mea
     assert.equal(dose.resolvePrescribedDose({dose_amount: 99}, fixture({variable_dose: 1})).variable_dose, 0)
 })
 
-test('changing the medication does not relabel past Given or Not Given entries', () => {
+test('current variable setting overrides past display without altering prescribed snapshots', () => {
     const medication = fixture({variable_dose: 1, dose_amount: null})
     const rows = reduce([medication], [transaction(), transaction({transaction_id: 12, transaction_type: 'NON_ADMINISTRATION', quantity_change: 0})], [])
     assert.equal(rows.length, 2)
     assert.ok(rows.every(row => row.variable_dose === 0 && row.dose_amount === 99))
+    assert.ok(rows.every(row => dose.administrationDoseDisplay(row) === 'Varies'))
+    const fixedRows = reduce([fixture()], [transaction()], [])
+    assert.equal(dose.administrationDoseDisplay(fixedRows[0]), '99 Units')
     const variableRows = reduce([fixture()], [transaction({variable_dose: 1, dose_amount: null})], [])
     assert.equal(variableRows[0].variable_dose, 1)
     assert.equal(variableRows[0].dose_amount, '')

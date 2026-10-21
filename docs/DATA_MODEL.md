@@ -165,3 +165,13 @@ Because unresolved gaps are calculated, they do not appear in transaction-only r
 reason. Documented Not Given transactions are directly reportable by student, medication, event date, stable reason
 code, label snapshot, and documenting user. Reports that need current effective results must apply the same correction
 and conversion relationships used by the administration page.
+
+### Current-setting display override (26.9.8.5)
+
+When the linked medication's current Inventory Variable dose flag is checked,
+all prior Given, corrected, and Not Given prescribed-dose displays show Varies
+in the Administration List and drawers. This is presentation only: original
+prescribed snapshots, correction payload snapshots, actual quantities, and
+inventory calculations remain unchanged. Unchecking removes this display override;
+a transaction originally snapshotted as variable still displays Varies. The
+companion Administration report follows the same rule in 26.10.1.4.

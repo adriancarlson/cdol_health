@@ -9,7 +9,7 @@
             </div>
             <div>
                 <label>Prescribed Dosage</label>
-                <span class="administration-correction-value">{{$root.medicationDoseDisplay(correction.administration)}}</span>
+                <span class="administration-correction-value">{{$root.administrationDoseDisplay(correction.administration)}}</span>
             </div>
             <div>
                 <label>Route</label>
@@ -31,7 +31,7 @@
                 <input id="administration-correction-quantity" type="text" size="10" inputmode="decimal"
                     ng-model="correction.correctionRecord.quantity" ng-change="correction.checkReqFields()">
                 {{$root.medicationOptionDisplayValue('inventory_unit', correction.administration.inventory_unit) | pluralize}}
-                ({{$root.medicationDoseDisplay(correction.administration)}})
+                ({{$root.administrationDoseDisplay(correction.administration)}})
             </div>
             <div>
                 <label>Available Inventory</label>

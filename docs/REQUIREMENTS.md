@@ -344,3 +344,13 @@ Historical transactions must not be silently overwritten.
 Only authorized staff should be able to view or modify medication inventory and administration data.
 
 Codex must inspect existing PowerSchool group, page-permission, plugin-security, and API options before proposing the final authorization implementation.
+
+### Current-setting display override (26.9.8.5)
+
+When the linked medication's current Inventory Variable dose flag is checked,
+all prior Given, corrected, and Not Given prescribed-dose displays show Varies
+in the Administration List and drawers. This is presentation only: original
+prescribed snapshots, correction payload snapshots, actual quantities, and
+inventory calculations remain unchanged. Unchecking removes this display override;
+a transaction originally snapshotted as variable still displays Varies. The
+companion Administration report follows the same rule in 26.10.1.4.

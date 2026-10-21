@@ -164,3 +164,13 @@ no automatic conversion or bulk amendment is implemented.
 - Do not present medication physically returning to school as a reversal of the earlier removal.
 - Do not depend on `/ws/district/codeset` for medication options because the internal custom page cannot be granted that core-resource permission through plugin permission mappings.
 - Do not persist `Other` as a medication option or silently truncate an overlong generated option Code.
+
+### Current-setting display override (26.9.8.5)
+
+When the linked medication's current Inventory Variable dose flag is checked,
+all prior Given, corrected, and Not Given prescribed-dose displays show Varies
+in the Administration List and drawers. This is presentation only: original
+prescribed snapshots, correction payload snapshots, actual quantities, and
+inventory calculations remain unchanged. Unchecking removes this display override;
+a transaction originally snapshotted as variable still displays Varies. The
+companion Administration report follows the same rule in 26.10.1.4.

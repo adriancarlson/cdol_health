@@ -33,7 +33,7 @@ async function main() {
         await page.addScriptTag({path: path.join(root, 'web_root/scripts/components/health_log/config/healthOptions.js')})
         await page.evaluate(() => { window.define = (dependencies, factory) => factory(angular, window.healthOptions) })
         await page.addScriptTag({path: path.join(medicationDir, 'medication.js')})
-        await page.addScriptTag({content: helpers + '\nwindow.doseHelpers = {isVariableDose, medicationDoseDisplay};'})
+        await page.addScriptTag({content: helpers + '\nwindow.doseHelpers = {isVariableDose, medicationDoseDisplay, administrationDoseDisplay};'})
         await page.evaluate(() => {
             window.calls = []
             angular.module('variableTest', ['medicationModule', 'ngMock'])
@@ -47,6 +47,7 @@ async function main() {
             window.rs = injector.get('$rootScope')
             rs.isVariableDose = doseHelpers.isVariableDose
             rs.medicationDoseDisplay = doseHelpers.medicationDoseDisplay
+            rs.administrationDoseDisplay = doseHelpers.administrationDoseDisplay
             rs.medicationOptionDisplayValue = (field, value) => value
             rs.appData = {context: 'inventory', curDate: '10/21/2026', curTime: '12:00 PM', curUserDcid: 6,
                 curStudentDCID: 100, curSchoolId: 10, curYearId: 36, medicationOptionsLoaded: true,
@@ -94,8 +95,10 @@ async function main() {
         assert.equal(await page.evaluate(() => calls.length), 1)
 
         const correction = fs.readFileSync(path.join(medicationDir, 'correctAdministration.html'), 'utf8')
-        await page.evaluate(html => mount(html, {administration: {...medication, root_transaction_id: 11, quantity_administered: 4,
+        await page.evaluate(html => mount(html, {administration: {...medication, root_transaction_id: 11, current_variable_dose: 1, quantity_administered: 4,
             event_date: '2026-10-01', event_time: 43200, users_dcid: 6}}), correction)
+        assert.ok((await page.locator('#administration-correction-summary').innerText()).includes('Varies'))
+        assert.ok(!(await page.locator('#administration-correction-summary').innerText()).includes('99 Units'))
         assert.equal(await page.locator('#correction-variable-dose').count(), 0)
         assert.equal(await page.locator('#correction-dose-amount').count(), 0)
         await page.locator('#administration-correction-notes-row textarea').fill('Corrected event notes')
@@ -113,7 +116,7 @@ async function main() {
             rs.appData.availableMedicationList = [variable]
             mount(html, {medication: variable})
         }, administration)
-        assert.ok((await page.locator('#administration-medication-summary').innerText()).includes('Varies · Units'))
+        assert.ok((await page.locator('#administration-medication-summary').innerText()).includes('Varies'))
         assert.ok((await page.locator('#administration-medication-summary').innerText()).includes('See authorized dosing plan.'))
         assert.equal(await page.locator('#administration-quantity-input').inputValue(), '')
         await page.screenshot({path: path.join(previewDir, 'administer-variable-dose.png'), fullPage: true})

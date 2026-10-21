@@ -127,6 +127,9 @@ define([
 		if (!amount) return '—'
 		return unit ? `${amount}${isVariableDose(record) ? ' · ' : ' '}${unit}` : amount
 	}
+	const administrationDoseDisplay = (record, unit = record.dose_unit) => {
+		return Number(record.current_variable_dose) === 1 || isVariableDose(record) ? 'Varies' : medicationDoseDisplay(record, unit)
+	}
 	const secondsToTime12 = value => {
 		const totalSeconds = Number(value)
 		if (!Number.isFinite(totalSeconds)) return ''
@@ -232,6 +235,8 @@ define([
 		}
 
 		$rootScope.appData = vm.appData
+		$rootScope.administrationDoseDisplay = record => administrationDoseDisplay(record,
+			$rootScope.medicationOptionDisplayValue('dose_unit', record.dose_unit))
 		$rootScope.isVariableDose = isVariableDose
 		$rootScope.medicationDoseDisplay = record => medicationDoseDisplay(record,
 			$rootScope.medicationOptionDisplayValue('dose_unit', record.dose_unit))
@@ -519,6 +524,7 @@ define([
 						root_transaction_id: Number(transaction.transaction_id),
 						medication_name: transaction.medication_name || medication.medication_name,
 						...resolvePrescribedDose(transaction, medication),
+						current_variable_dose: isVariableDose(medication) ? 1 : 0,
 						dose_unit: transaction.dose_unit || medication.dose_unit,
 						inventory_unit: transaction.inventory_unit || medication.inventory_unit,
 						route: transaction.route || medication.route,
@@ -607,6 +613,7 @@ define([
 						root_transaction_id: transactionId,
 						medication_name: transaction.medication_name || medication.medication_name,
 						...resolvePrescribedDose(transaction, medication),
+						current_variable_dose: isVariableDose(medication) ? 1 : 0,
 						dose_unit: transaction.dose_unit || medication.dose_unit,
 						inventory_unit: transaction.inventory_unit || medication.inventory_unit,
 						route: transaction.route || medication.route,
@@ -693,7 +700,7 @@ define([
 				if (!Number.isFinite(medicationId) || optionsByMedication.has(medicationId)) return
 				optionsByMedication.set(medicationId, {
 					medication_id: medicationId,
-					label: `${administration.medication_name} - ${$rootScope.medicationDoseDisplay(administration)}`
+					label: `${administration.medication_name} - ${$rootScope.administrationDoseDisplay(administration)}`
 				})
 			})
 			return Array.from(optionsByMedication.values()).sort((left, right) => left.label.localeCompare(right.label))
@@ -731,7 +738,7 @@ define([
 				})
 				.map(medication => Object.assign({}, medication, {
 					key: medicationAbbreviation(medication.medication_name),
-					label: `${medication.medication_name} — ${medicationDoseDisplay(medication)}`
+					label: `${medication.medication_name} — ${administrationDoseDisplay(medication)}`
 				}))
 			const medicationById = new Map(medicationLegend.map(medication => [Number(medication.medication_id), medication]))
 
