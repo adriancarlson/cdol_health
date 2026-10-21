@@ -33,6 +33,13 @@ const medications = [
     { medication_id: 10, medication_name: 'Alpha', dose_amount: 1, dose_unit: 'pill' }
 ]
 
+test('variable-dose chart legend does not expose a numeric placeholder', () => {
+    const chart = prepareAdministrationChart([
+        {medication_id: 7, medication_name: 'Example', variable_dose: 1, dose_amount: 99, dose_unit: 'Units'}
+    ], [], [calendarRow('2024-08-15')])
+    assert.equal(chart.medicationLegend[0].label, 'Example — Varies · Units')
+})
+
 test('builds one 31-day row per school-year month with boundary and day classifications', () => {
     const chart = prepareAdministrationChart(medications, [], [
         calendarRow('2024-08-15'),

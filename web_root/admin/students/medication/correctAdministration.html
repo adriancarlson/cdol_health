@@ -8,9 +8,8 @@
                 <span class="administration-correction-value">{{correction.administration.medication_name}}</span>
             </div>
             <div>
-                <label>Prescribed Dosage</label>
-                <span class="administration-correction-value">{{correction.administration.dose_amount}}
-                    {{$root.medicationOptionDisplayValue('dose_unit', correction.administration.dose_unit)}}</span>
+                <label>Recorded Prescribed Dosage</label>
+                <span class="administration-correction-value">{{$root.medicationDoseDisplay(correction.administration)}}</span>
             </div>
             <div>
                 <label>Route</label>
@@ -25,6 +24,25 @@
             </div>
         </div>
 
+        <div ng-if="correction.mode === 'edit'">
+            <label for="correction-variable-dose">
+                <input id="correction-variable-dose" type="checkbox" ng-model="correction.correctionRecord.variable_dose"
+                    ng-true-value="1" ng-false-value="0" ng-change="correction.checkReqFields()"> Variable dose
+            </label>
+            <div ng-if="$root.isVariableDose(correction.correctionRecord)">
+                <label>Corrected Prescribed Dosage</label>
+                <span>{{$root.medicationDoseDisplay(correction.correctionRecord)}}</span>
+            </div>
+            <div ng-if="!$root.isVariableDose(correction.correctionRecord)">
+                <label for="correction-dose-amount">Corrected Prescribed Dosage</label>
+                <input id="correction-dose-amount" type="text" size="10" inputmode="decimal"
+                    ng-model="correction.correctionRecord.dose_amount" ng-change="correction.checkReqFields()">
+                {{$root.medicationOptionDisplayValue('dose_unit', correction.administration.dose_unit)}}
+            </div>
+            <div class="feedback-info">To clarify a placeholder dose, select Variable dose and enter a correction reason.
+                Leave Quantity Administered unchanged to keep inventory unchanged. This corrects this entry only.</div>
+        </div>
+
         <div id="administration-correction-entry-row" ng-if="correction.mode === 'edit'">
             <div>
                 <label for="administration-correction-quantity">Quantity Administered
@@ -32,8 +50,7 @@
                 <input id="administration-correction-quantity" type="text" size="10" inputmode="decimal"
                     ng-model="correction.correctionRecord.quantity" ng-change="correction.checkReqFields()">
                 {{$root.medicationOptionDisplayValue('inventory_unit', correction.administration.inventory_unit) | pluralize}}
-                ({{correction.administration.dose_amount}} {{$root.medicationOptionDisplayValue('dose_unit',
-                correction.administration.dose_unit)}})
+                ({{$root.medicationDoseDisplay(correction.correctionRecord)}})
             </div>
             <div>
                 <label>Available Inventory</label>

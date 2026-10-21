@@ -103,6 +103,30 @@ define([
 		if (usMatch) return `${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`
 		return dateText
 	}
+	const isVariableDose = record => Boolean(record && Number(record.variable_dose) === 1)
+	const isValidPrescribedDose = record => {
+		if (isVariableDose(record)) return true
+		const amount = String(record && record.dose_amount !== undefined && record.dose_amount !== null ? record.dose_amount : '').trim()
+		return /^(?:\d+\.?\d*|\.\d+)$/.test(amount) && Number.isFinite(Number(amount)) && Number(amount) > 0
+	}
+	const prescribedDoseFields = record => ({
+		variable_dose: isVariableDose(record) ? 1 : 0,
+		// psApiService retains empty strings. Verify numeric-field clearing on the installed schema API.
+		dose_amount: isVariableDose(record) ? '' : record.dose_amount
+	})
+	const resolvePrescribedDose = (snapshot, fallback = {}) => {
+		const hasFlag = snapshot.variable_dose !== undefined && snapshot.variable_dose !== null && snapshot.variable_dose !== ''
+		const hasAmount = snapshot.dose_amount !== undefined && snapshot.dose_amount !== null && snapshot.dose_amount !== ''
+		// A legacy numeric snapshot stays fixed even after its medication becomes variable.
+		if (hasFlag || hasAmount) return prescribedDoseFields(snapshot)
+		// Legacy rows with no prescribed snapshot may use a fixed fallback, never a later variable designation.
+		return { variable_dose: 0, dose_amount: isVariableDose(fallback) ? null : fallback.dose_amount }
+	}
+	const medicationDoseDisplay = (record, unit = record.dose_unit) => {
+		const amount = isVariableDose(record) ? 'Varies' : String(record.dose_amount === undefined || record.dose_amount === null ? '' : record.dose_amount)
+		if (!amount) return '—'
+		return unit ? `${amount}${isVariableDose(record) ? ' · ' : ' '}${unit}` : amount
+	}
 	const secondsToTime12 = value => {
 		const totalSeconds = Number(value)
 		if (!Number.isFinite(totalSeconds)) return ''
@@ -208,6 +232,9 @@ define([
 		}
 
 		$rootScope.appData = vm.appData
+		$rootScope.isVariableDose = isVariableDose
+		$rootScope.medicationDoseDisplay = record => medicationDoseDisplay(record,
+			$rootScope.medicationOptionDisplayValue('dose_unit', record.dose_unit))
 		const addHealthOptionSentinel = options => options.concat([{
 			modelValue: ADD_HEALTH_OPTION_VALUE,
 			code: ADD_HEALTH_OPTION_VALUE,
@@ -491,7 +518,7 @@ define([
 					const administration = Object.assign({}, transaction, {
 						root_transaction_id: Number(transaction.transaction_id),
 						medication_name: transaction.medication_name || medication.medication_name,
-						dose_amount: transaction.dose_amount || medication.dose_amount,
+						...resolvePrescribedDose(transaction, medication),
 						dose_unit: transaction.dose_unit || medication.dose_unit,
 						inventory_unit: transaction.inventory_unit || medication.inventory_unit,
 						route: transaction.route || medication.route,
@@ -527,7 +554,9 @@ define([
 							correction_date: correction.correction_date,
 							correction_time: correction.correction_time,
 							correction_user_name: correction.correction_user_name,
-							correction_reason: correction.correction_reason
+							correction_reason: correction.correction_reason,
+							previous_dose_display: $rootScope.medicationDoseDisplay(administration),
+							prescribed_dose_display: $rootScope.medicationDoseDisplay(Object.assign({}, administration, resolvePrescribedDose(correction, administration)))
 						})
 						administration.effective_transaction_id = Number(correction.transaction_id)
 						administration.correction_date = correction.correction_date
@@ -551,7 +580,7 @@ define([
 						administration.user_middle_name = correction.user_middle_name
 						administration.notes = correction.notes
 						administration.medication_name = correction.medication_name || administration.medication_name
-						administration.dose_amount = correction.dose_amount || administration.dose_amount
+						Object.assign(administration, resolvePrescribedDose(correction, administration))
 						administration.dose_unit = correction.dose_unit || administration.dose_unit
 						administration.inventory_unit = correction.inventory_unit || administration.inventory_unit
 						administration.route = correction.route || administration.route
@@ -577,7 +606,7 @@ define([
 					const notGiven = Object.assign({}, transaction, {
 						root_transaction_id: transactionId,
 						medication_name: transaction.medication_name || medication.medication_name,
-						dose_amount: transaction.dose_amount || medication.dose_amount,
+						...resolvePrescribedDose(transaction, medication),
 						dose_unit: transaction.dose_unit || medication.dose_unit,
 						inventory_unit: transaction.inventory_unit || medication.inventory_unit,
 						route: transaction.route || medication.route,
@@ -594,12 +623,15 @@ define([
 						.sort((left, right) => Number(left.transaction_id) - Number(right.transaction_id))
 					correctionRows.forEach(correction => {
 						notGiven.correction_history.push({
-							status_label: 'Not-Given Reason Corrected',
+							status_label: 'Not-Given Entry Corrected',
 							correction_date: correction.correction_date,
 							correction_time: correction.correction_time,
 							correction_user_name: correction.correction_user_name,
-							correction_reason: correction.correction_reason
+							correction_reason: correction.correction_reason,
+							previous_dose_display: $rootScope.medicationDoseDisplay(notGiven),
+							prescribed_dose_display: $rootScope.medicationDoseDisplay(Object.assign({}, notGiven, resolvePrescribedDose(correction, notGiven)))
 						})
+						Object.assign(notGiven, resolvePrescribedDose(correction, notGiven))
 						notGiven.not_given_reason_code = correction.not_given_reason_code || notGiven.not_given_reason_code
 						notGiven.not_given_reason_label = correction.not_given_reason_label || notGiven.not_given_reason_label
 						notGiven.notes = correction.notes
@@ -632,6 +664,7 @@ define([
 					daily_cutoff_time: Number(expected.daily_cutoff_time),
 					medication_name: medication.medication_name,
 					dose_amount: medication.dose_amount,
+					variable_dose: isVariableDose(medication) ? 1 : 0,
 					dose_unit: medication.dose_unit,
 					inventory_unit: medication.inventory_unit,
 					route: medication.route,
@@ -660,7 +693,7 @@ define([
 				if (!Number.isFinite(medicationId) || optionsByMedication.has(medicationId)) return
 				optionsByMedication.set(medicationId, {
 					medication_id: medicationId,
-					label: `${administration.medication_name} - ${administration.dose_amount} ${administration.dose_unit}`
+					label: `${administration.medication_name} - ${$rootScope.medicationDoseDisplay(administration)}`
 				})
 			})
 			return Array.from(optionsByMedication.values()).sort((left, right) => left.label.localeCompare(right.label))
@@ -698,7 +731,7 @@ define([
 				})
 				.map(medication => Object.assign({}, medication, {
 					key: medicationAbbreviation(medication.medication_name),
-					label: `${medication.medication_name} — ${medication.dose_amount} ${medication.dose_unit}`
+					label: `${medication.medication_name} — ${medicationDoseDisplay(medication)}`
 				}))
 			const medicationById = new Map(medicationLegend.map(medication => [Number(medication.medication_id), medication]))
 
@@ -1288,13 +1321,14 @@ define([
 			const doseAmount = Number(record.dose_amount)
 			const currentMedicationId = record.medication_id || vm.currentMedicationId
 
-			if (!medicationName || !doseUnit || !Number.isFinite(doseAmount) || doseAmount <= 0) return false
+			if (!medicationName || !doseUnit || !isValidPrescribedDose(record)) return false
 
 			return ($rootScope.existingMedicationList || []).some(existingMedication => {
 				if (currentMedicationId && Number(existingMedication.medication_id) === Number(currentMedicationId)) return false
 
 				return normalizeMedicationIdentityText(existingMedication.medication_name) === medicationName &&
-					Number(existingMedication.dose_amount) === doseAmount &&
+					isVariableDose(existingMedication) === isVariableDose(record) &&
+					(isVariableDose(record) || Number(existingMedication.dose_amount) === doseAmount) &&
 					normalizeMedicationIdentityText(existingMedication.dose_unit) === doseUnit
 			})
 		}
@@ -1309,7 +1343,7 @@ define([
 			const inventoryRows = [vm.inventoryRecord && vm.inventoryRecord[0]].concat(vm.additionalInventoryRows || [])
 			const medicationOptionsAreAvailable = $rootScope.appData.medicationOptionsLoaded &&
 				!$rootScope.appData.medicationOptionLoadError
-			const medicationIsValid = normalizeMedicationNameSpacing(record.medication_name) && record.created_date && isPositiveNumber(record.dose_amount) &&
+			const medicationIsValid = normalizeMedicationNameSpacing(record.medication_name) && record.created_date && isValidPrescribedDose(record) &&
 				record.dose_unit && record.inventory_unit && record.route && record.frequency
 
 			return Boolean(medicationOptionsAreAvailable && medicationIsValid && !vm.duplicateMedicationExists() && inventoryRows.length && inventoryRows.every(isInventoryRowValid))
@@ -1390,6 +1424,10 @@ define([
 		}
 
 		vm.hasExistingInventory = () => Boolean(vm.isEditMode)
+		vm.onVariableDoseChanged = () => {
+			if (isVariableDose(vm.medicationRecord)) vm.medicationRecord.dose_amount = ''
+			vm.checkReqFields()
+		}
 		vm.hasExistingInventoryLines = () => Boolean(
 			vm.isEditMode &&
 			vm.removalMedication &&
@@ -1496,6 +1534,8 @@ define([
 
 				vm._lastOpenedInventoryBatches = inventoryBatches
 			}
+			vm.medicationRecord.variable_dose = isVariableDose(vm.medicationRecord) ? 1 : 0
+			if (isVariableDose(vm.medicationRecord)) vm.medicationRecord.dose_amount = ''
 			vm.checkReqFields()
 			openCallBack()
 			$timeout(() => {
@@ -1546,12 +1586,13 @@ define([
 				$scope.$emit('drawer.disable.save.button')
 				psAlert({
 					title: 'Invalid Medication Inventory',
-					message: 'Enter a valid positive dosage and complete inventory information. Inventory quantities must be numeric and quantity added must be greater than zero.'
+					message: 'Enter a valid positive dosage or select Variable dose, and complete inventory information. Inventory quantities must be numeric and quantity added must be greater than zero.'
 				})
 				return
 			}
 
 			const medicationPayload = Object.assign({}, vm.medicationRecord || vm[recordKey] || {})
+			Object.assign(medicationPayload, prescribedDoseFields(medicationPayload))
 			const existingMedicationId = medicationPayload.medication_id || vm.currentMedicationId || (data && data.data && data.data.medication_id) || null
 			const inventoryRows = [vm.inventoryRecord && vm.inventoryRecord[0]].concat(vm.additionalInventoryRows || [])
 			const newInventoryQuantity = inventoryRows.reduce((total, row) => {
@@ -1848,7 +1889,7 @@ define([
 				users_dcid: vm.administrationRecord.users_dcid,
 				notes: String(vm.administrationRecord.notes || '').trim(),
 				medication_name: vm.medication.medication_name,
-				dose_amount: vm.medication.dose_amount,
+				...prescribedDoseFields(vm.medication),
 				dose_unit: vm.medication.dose_unit,
 				inventory_unit: vm.medication.inventory_unit,
 				route: vm.medication.route,
@@ -2062,10 +2103,13 @@ define([
 		const hasChangedNotGiven = () => {
 			if (!vm.isCorrection || vm.record.resolution_type === 'given') return true
 			return String(vm.record.not_given_reason_code || '') !== String(vm.administration.not_given_reason_code || '') ||
-				String(vm.record.notes || '').trim() !== String(vm.administration.notes || '').trim()
+				String(vm.record.notes || '').trim() !== String(vm.administration.notes || '').trim() ||
+				isVariableDose(vm.record) !== isVariableDose(vm.administration) ||
+				(!isVariableDose(vm.record) && Number(vm.record.dose_amount) !== Number(vm.administration.dose_amount))
 		}
 		vm.isFormValid = () => {
 			if (!vm.administration || vm.saveInProgress || vm.reasonEditor.saving || vm.reasonEditor.visible) return false
+			if (vm.isCorrection && !isValidPrescribedDose(vm.record)) return false
 			if (vm.isCorrection && !String(vm.record.correction_reason || '').trim()) return false
 			if (vm.record.resolution_type === 'given') {
 				const quantity = normalizedQuantity()
@@ -2087,6 +2131,8 @@ define([
 			const notGiven = Boolean(administration && administration.is_not_given)
 			vm.record = {
 				resolution_type: notGiven ? 'not_given' : '',
+				...prescribedDoseFields(administration || {}),
+				dose_unit: administration && administration.dose_unit,
 				quantity: '',
 				event_date: formatDateForInput(administration && administration.event_date),
 				event_time: $rootScope.getCurrentTime(),
@@ -2117,7 +2163,7 @@ define([
 
 		const snapshotFields = () => ({
 			medication_name: vm.administration.medication_name,
-			dose_amount: vm.administration.dose_amount,
+			...prescribedDoseFields(vm.isCorrection ? vm.record : vm.administration),
 			dose_unit: vm.administration.dose_unit,
 			inventory_unit: vm.administration.inventory_unit,
 			route: vm.administration.route,
@@ -2176,7 +2222,7 @@ define([
 			vm.saveInProgress = true
 			vm.checkReqFields()
 			loadingDialog()
-			const resolutionLabel = vm.record.resolution_type === 'given' ? 'administration' : 'not-given reason'
+			const resolutionLabel = vm.record.resolution_type === 'given' ? 'administration' : 'not-given entry'
 			psApiService.psApiCall('u_student_med_inv_txn', 'POST', buildPayload())
 				.then(() => {
 					$rootScope.showAdministrationFeedback(`${vm.administration.medication_name} ${resolutionLabel} saved for ${vm.record.event_date}.`)
@@ -2276,7 +2322,9 @@ define([
 					normalizeDateForComparison(vm.correctionRecord.event_date) !== normalizeDateForComparison(vm.administration.event_date) ||
 					normalizeTime(vm.correctionRecord.event_time) !== secondsToTime12(vm.administration.event_time) ||
 					String(vm.correctionRecord.users_dcid) !== String(vm.administration.users_dcid) ||
-					String(vm.correctionRecord.notes || '').trim() !== String(vm.administration.notes || '').trim()
+					String(vm.correctionRecord.notes || '').trim() !== String(vm.administration.notes || '').trim() ||
+					isVariableDose(vm.correctionRecord) !== isVariableDose(vm.administration) ||
+					(!isVariableDose(vm.correctionRecord) && Number(vm.correctionRecord.dose_amount) !== Number(vm.administration.dose_amount))
 				)
 			)
 		}
@@ -2284,6 +2332,7 @@ define([
 		vm.isFormValid = () => {
 			if (!vm.administration || vm.administration.is_entered_in_error || !correctionReason() || vm.saveInProgress) return false
 			if (vm.mode === 'void') return true
+			if (!isValidPrescribedDose(vm.correctionRecord)) return false
 
 			return Boolean(
 				normalizedQuantity() !== null &&
@@ -2302,6 +2351,8 @@ define([
 		const initializeRecord = administration => {
 			vm.correctionRecord = {
 				quantity: administration ? administration.quantity_administered : '',
+				...prescribedDoseFields(administration || {}),
+				dose_unit: administration && administration.dose_unit,
 				event_date: administration ? formatDateForInput(administration.event_date) : '',
 				event_time: administration ? secondsToTime12(administration.event_time) : '',
 				users_dcid: administration ? administration.users_dcid : '',
@@ -2343,7 +2394,7 @@ define([
 				users_dcid: vm.correctionRecord.users_dcid,
 				notes: String(vm.correctionRecord.notes || '').trim(),
 				medication_name: vm.administration.medication_name,
-				dose_amount: vm.administration.dose_amount,
+				...prescribedDoseFields(vm.mode === 'void' ? vm.administration : vm.correctionRecord),
 				dose_unit: vm.administration.dose_unit,
 				inventory_unit: vm.administration.inventory_unit,
 				route: vm.administration.route,

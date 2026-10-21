@@ -12,9 +12,8 @@
                 <span class="expected-administration-value">{{expectedAdmin.administration.event_date | date:'MM/dd/yyyy'}}</span>
             </div>
             <div>
-                <label>Prescribed Dosage</label>
-                <span class="expected-administration-value">{{expectedAdmin.administration.dose_amount}}
-                    {{$root.medicationOptionDisplayValue('dose_unit', expectedAdmin.administration.dose_unit)}}</span>
+                <label>{{expectedAdmin.isCorrection ? 'Recorded Prescribed Dosage' : 'Prescribed Dosage'}}</label>
+                <span class="expected-administration-value">{{$root.medicationDoseDisplay(expectedAdmin.administration)}}</span>
             </div>
             <div>
                 <label>Route</label>
@@ -32,6 +31,24 @@
         <div class="feedback-info" ng-if="expectedAdmin.isCorrection">
             This day is currently documented as Not Given. You can correct its reason or record that the medication was
             actually given; either change preserves the original entry in the audit history.
+        </div>
+        <div ng-if="expectedAdmin.isCorrection">
+            <label for="not-given-variable-dose">
+                <input id="not-given-variable-dose" type="checkbox" ng-model="expectedAdmin.record.variable_dose"
+                    ng-true-value="1" ng-false-value="0" ng-change="expectedAdmin.checkReqFields()"> Variable dose
+            </label>
+            <div ng-if="$root.isVariableDose(expectedAdmin.record)">
+                <label>Corrected Prescribed Dosage</label>
+                <span>{{$root.medicationDoseDisplay(expectedAdmin.record)}}</span>
+            </div>
+            <div ng-if="!$root.isVariableDose(expectedAdmin.record)">
+                <label for="not-given-dose-amount">Corrected Prescribed Dosage</label>
+                <input id="not-given-dose-amount" type="text" size="10" inputmode="decimal"
+                    ng-model="expectedAdmin.record.dose_amount" ng-change="expectedAdmin.checkReqFields()">
+                {{$root.medicationOptionDisplayValue('dose_unit', expectedAdmin.administration.dose_unit)}}
+            </div>
+            <div class="feedback-info">Correct the prescribed-dose description for this entry only. Keep Medication
+                Was Not Given selected to leave inventory unchanged, and enter a correction reason.</div>
         </div>
 
         <div id="expected-administration-resolution">

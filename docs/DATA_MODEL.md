@@ -11,7 +11,8 @@ PowerSchool child extension of `students`.
 | Field | Type | Purpose |
 |---|---|---|
 | `medication_name` | String(250) | Free-form medication name |
-| `dose_amount` | Double | Administered dose amount |
+| `dose_amount` | Double | Fixed prescribed dose amount; blank when variable |
+| `variable_dose` | Integer | 1 for variable prescribed dose; 0 or legacy null for fixed dose |
 | `dose_unit` | String(250) | Dose unit |
 | `inventory_unit` | String(250) | Unit used to count inventory |
 | `inventory_baseline_quantity` | Double | Total available quantity immediately after inventory was most recently added |
@@ -83,6 +84,7 @@ Append-only standalone inventory transaction table. Each real-world removal crea
 | `notes` | String(4000) | Required audit explanation |
 | `medication_name` | String(250) | Medication-name snapshot for an administration |
 | `dose_amount` | Double | Prescribed-dose snapshot for an administration |
+| `variable_dose` | Integer | Prescribed-dose mode snapshot; explicit 1 or 0 on new transactions |
 | `dose_unit` | String(250) | Prescribed-dose-unit snapshot for an administration |
 | `inventory_unit` | String(250) | Inventory-unit snapshot for an administration |
 | `route` | String(250) | Route snapshot for an administration |
@@ -148,6 +150,16 @@ Given rows remain visible and clearly marked but do not resolve an expected dail
 context are derived through the linked medication definition.
 
 The administration form collects the actual quantity used in the medication's inventory unit and shows the prescribed dose amount and unit in parentheses for reference. That entered quantity becomes the transaction's negative `quantity_change`.
+
+Variable prescribed doses display `Varies · [dose unit]`. Their numeric `dose_amount` is blank; the unit is retained.
+Medication Notes holds the authorized dosing instructions or plan reference and is shown when entering a variable-dose
+administration. These medication notes are not added to historical administration notes or snapshotted as instructions.
+Every new Given, Not Given, conversion, correction, and void snapshots the prescribed-dose mode. Historical numeric
+snapshots remain fixed regardless of later medication edits. A dose-only correction appends the existing correction
+transaction type with zero `quantity_change`; its effective mode replaces the original, whose data remains immutable.
+Corrections show the previous and corrected prescribed descriptions in the administration audit when they differ.
+The UI sends an empty string to clear `dose_amount` because the API service omits null values. Installed schema API
+clearing and Oracle execution must be verified on the test server.
 
 Because unresolved gaps are calculated, they do not appear in transaction-only reports until the nurse documents a
 reason. Documented Not Given transactions are directly reportable by student, medication, event date, stable reason

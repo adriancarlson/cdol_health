@@ -106,8 +106,7 @@
                                 </span>
                             </td>
                             <td>{{administration.medication_name}}</td>
-                            <td class="center">{{administration.dose_amount}}
-                                {{$root.medicationOptionDisplayValue('dose_unit', administration.dose_unit)}}</td>
+                            <td class="center">{{$root.medicationDoseDisplay(administration)}}</td>
                             <td class="center administration-quantity">
                                 <span ng-if="administration.is_given">{{administration.quantity_administered}}
                                 {{$root.medicationOptionDisplayValue('inventory_unit', administration.inventory_unit) |
@@ -122,6 +121,9 @@
                                     ng-repeat="audit in administration.correction_history">
                                     <strong>{{audit.status_label}}:</strong>
                                     {{audit.correction_reason}}
+                                    <span ng-if="audit.previous_dose_display !== audit.prescribed_dose_display">
+                                        Prescribed dosage: {{audit.previous_dose_display}} → {{audit.prescribed_dose_display}}.
+                                    </span>
                                     <span ng-if="audit.correction_user_name">
                                         — {{audit.correction_user_name}}
                                     </span>
@@ -214,8 +216,7 @@
                                     <span class="administration-chart-medication-list">
                                         <span class="administration-chart-medication-item"
                                             ng-repeat="medication in vm.administrationChart.medicationLegend track by medication.medication_id">
-                                            <strong>{{medication.key}}:</strong> {{medication.medication_name}} — {{medication.dose_amount}}
-                                            {{$root.medicationOptionDisplayValue('dose_unit', medication.dose_unit)}}<span ng-if="!$last">,</span>
+                                            <strong>{{medication.key}}:</strong> {{medication.medication_name}} — {{$root.medicationDoseDisplay(medication)}}<span ng-if="!$last">,</span>
                                         </span>
                                     </span>
                                 </span>
@@ -269,8 +270,7 @@
                             <div class="administration-chart-legend-title">Medications</div>
                             <div ng-repeat="medication in vm.administrationChart.medicationLegend track by medication.medication_id">
                                 <span class="administration-chart-key">{{medication.key}}</span>
-                                {{medication.medication_name}} — {{medication.dose_amount}}
-                                {{$root.medicationOptionDisplayValue('dose_unit', medication.dose_unit)}}
+                                {{medication.medication_name}} — {{$root.medicationDoseDisplay(medication)}}
                             </div>
                         </div>
 

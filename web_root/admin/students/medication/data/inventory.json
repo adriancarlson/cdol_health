@@ -10,6 +10,7 @@
                     'medication_name' VALUE u_student_medication.medication_name,
                     'created_date' VALUE TO_CHAR(u_student_medication.created_date, 'YYYY-MM-DD'),
                     'dose_amount' VALUE u_student_medication.dose_amount,
+                    'variable_dose' VALUE NVL(u_student_medication.variable_dose, 0),
                     'dose_unit' VALUE u_student_medication.dose_unit,
                     'route' VALUE u_student_medication.route,
                     'frequency' VALUE u_student_medication.frequency,

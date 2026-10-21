@@ -14,20 +14,23 @@
             <div>
                 <label for="administration-medication-select">Medication <span class="req"><em>*</em></span></label>
                 <select id="administration-medication-select" ng-model="admin.medication"
-                    ng-options="medication as (medication.medication_name + ' - ' + medication.dose_amount + ' ' + $root.medicationOptionDisplayValue('dose_unit', medication.dose_unit)) for medication in $root.appData.availableMedicationList track by medication.medication_id"
+                    ng-options="medication as (medication.medication_name + ' - ' + $root.medicationDoseDisplay(medication)) for medication in $root.appData.availableMedicationList track by medication.medication_id"
                     ng-change="admin.medicationChanged()">
                     <option value="">Select a Medication</option>
                 </select>
             </div>
             <div ng-if="admin.medication">
                 <label>Prescribed Dosage</label>
-                <span class="administration-summary-value">{{admin.medication.dose_amount}}
-                    {{$root.medicationOptionDisplayValue('dose_unit', admin.medication.dose_unit)}}</span>
+                <span class="administration-summary-value">{{$root.medicationDoseDisplay(admin.medication)}}</span>
             </div>
             <div ng-if="admin.medication">
                 <label>Route</label>
                 <span class="administration-summary-value">{{$root.medicationOptionDisplayValue('route',
                     admin.medication.route)}}</span>
+            </div>
+            <div ng-if="$root.isVariableDose(admin.medication)">
+                <label>Medication Notes / Dosing Instructions</label>
+                <span class="administration-summary-value">{{admin.medication.notes || 'See the authorized dosing plan.'}}</span>
             </div>
             <div ng-if="admin.medication">
                 <label>Available Inventory</label>
@@ -48,8 +51,7 @@
                 <input id="administration-quantity-input" type="text" size="10" inputmode="decimal"
                     ng-model="admin.administrationRecord.quantity" ng-change="admin.checkReqFields()">
                 {{$root.medicationOptionDisplayValue('inventory_unit', admin.medication.inventory_unit) | pluralize}}
-                ({{admin.medication.dose_amount}} {{$root.medicationOptionDisplayValue('dose_unit',
-                admin.medication.dose_unit)}})
+                ({{$root.medicationDoseDisplay(admin.medication)}})
                 <span class="administration-inventory-status-pill"
                     ng-if="admin.projectedInventoryStatus && admin.projectedInventoryStatus.inventory_status !== 'NORMAL'"
                     ng-class="admin.projectedInventoryStatus.inventory_status_row_class">

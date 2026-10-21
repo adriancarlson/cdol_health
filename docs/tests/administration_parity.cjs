@@ -11,6 +11,7 @@ const between = (start, end) => {
 }
 const reduce = vm.runInNewContext(
     between('const normalizeDateKey =', 'const secondsToTime12 =') +
+    '\nconst $rootScope = { medicationDoseDisplay };\n' +
     between('const prepareAdministrationHistory =', 'const prepareAdministrationMedicationOptions =') +
     '\nprepareAdministrationHistory'
 )

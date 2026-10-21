@@ -57,8 +57,7 @@
                         </tr>
                         <tr ng-repeat="medication in vm.filteredInventoryList" data-id="{{medication.medication_id}}">
                             <td class="center">{{medication.medication_name}}</td>
-                            <td class="center">{{medication.dose_amount}}
-                                {{$root.medicationOptionDisplayValue('dose_unit', medication.dose_unit)}}</td>
+                            <td class="center">{{$root.medicationDoseDisplay(medication)}}</td>
                             <td class="center">{{$root.medicationOptionDisplayValue('inventory_unit',
                                 medication.inventory_unit)}}</td>
                             <td class="center">{{$root.medicationOptionDisplayValue('route', medication.route)}}</td>

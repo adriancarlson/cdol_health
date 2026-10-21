@@ -143,6 +143,15 @@ the primary font; staff with fewer entries use Lucida Handwriting, with ties res
 Stable numeric suffixes remain the fallback when middle initials do not resolve a collision. The existing administration
 response supplies the middle name so this does not add a page-load request.
 
+## Variable prescribed doses
+Variable prescribed doses (October 21, 2026): add `variable_dose` Integer to medication definitions and transaction
+snapshots. Use 1 for variable, explicit 0 for new fixed snapshots, and interpret legacy null as fixed. Keep numeric
+`dose_amount` blank for variable doses, retain `dose_unit`, and display `Varies · [unit]`. Use existing Medication Notes
+for authorized instructions; no separate instructions field in this release. Do not change frequency or calculate an
+actual dose. Nurses enter the actual quantity. Clarify historical placeholder values through individual, reason-required
+append-only corrections; never interpret 99 globally or rewrite original transactions. Full bulk amendment remains a
+possible later enhancement.
+
 ## Superseded or rejected approaches
 
 - Do not create a new medication row for every refill.

@@ -22,9 +22,15 @@
             <div id="dose-group">
                 <label id="dose-label">Dosage <span id="dose-req" class="req"><em
                             id="dose-req-mark">*</em></span></label>
+                <label for="variable-dose-input">
+                    <input id="variable-dose-input" type="checkbox" ng-model="vm.medicationRecord.variable_dose"
+                        ng-true-value="1" ng-false-value="0" ng-change="vm.onVariableDoseChanged()"> Variable dose
+                </label>
                 <div id="dose-input-group" class="dose-group">
+                    <span ng-if="$root.isVariableDose(vm.medicationRecord)">Varies ·</span>
                     <input id="dose-amt-input" type="text" class="dose-input" ng-model="vm.medicationRecord.dose_amount"
-                        size="10" required ng-change="vm.checkReqFields()" aria-label="Dosage amount"
+                        ng-if="!$root.isVariableDose(vm.medicationRecord)"
+                        size="10" ng-required="!$root.isVariableDose(vm.medicationRecord)" ng-change="vm.checkReqFields()" aria-label="Dosage amount"
                         inputmode="decimal">
                     <select id="dose-unit-select" class="dose-unit medication-option-select"
                         ng-if="!vm.optionEditors.dose_unit.visible"
@@ -156,6 +162,10 @@
         </div>
         <div id="notes-row" ng-show="vm.drawerMode === 'edit'">
             <div id="notes-group">
+                <div class="feedback-info" ng-if="$root.isVariableDose(vm.medicationRecord)">
+                    Record the authorized dosing instructions or plan reference in Medication Notes. Enter the actual
+                    quantity each time the medication is administered. Frequency is selected separately.
+                </div>
                 <label id="notes-label">Medication Notes:</label>
                 <textarea id="notes-text" spellcheck="true" wrap="absolute" rows="5" cols="60"
                     ng-model="vm.medicationRecord.notes"></textarea>
@@ -351,8 +361,7 @@
                     </div>
                     <div class="text-center">
                         <label>Dosage</label>
-                        <span class="transaction-summary-value">{{vm.removalMedication.dose_amount}}
-                            {{$root.medicationOptionDisplayValue('dose_unit', vm.removalMedication.dose_unit)}}</span>
+                        <span class="transaction-summary-value">{{$root.medicationDoseDisplay(vm.removalMedication)}}</span>
                     </div>
                     <div class="text-center">
                         <label>Available Inventory</label>

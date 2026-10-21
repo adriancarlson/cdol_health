@@ -1,5 +1,27 @@
 # Current State
 
+## Variable prescribed doses (26.9.8.2)
+
+The `feature/variable-medication-dose` branch adds the explicit Variable dose control,
+nullable numeric prescribed amount, retained dose unit, and mode snapshots on new
+administration transactions. List, Inventory, chart, filters, and drawers display
+`Varies · [unit]`. Medication Notes holds instructions; actual administered quantity
+and frequency remain independent. Existing numeric snapshots keep their original
+meaning until an individual Given/Not Given correction is saved. Dose-only corrections
+append audit history with zero inventory change. There is no automatic migration.
+
+The companion reports branch uses version 26.10.1.1 and must be installed after the
+Health schema update. Test-server schema API clearing, Oracle, authorization, and
+installed screens remain acceptance gates. See `VARIABLE_DOSE.md` for installation,
+record clarification, and test instructions. Pre-existing Health Forms changes below
+are preserved in the working tree and included in the generated Health package.
+
+Local validation passed: 35 Node tests (including existing Health Forms browser
+suites), 29 Python medication tests, the variable-dose AngularJS 1.4.7 browser
+fixture with no console errors, four companion report SQL-expression tests,
+JavaScript syntax, XML parsing, and diff checks. These do not establish installed
+PowerSchool behavior.
+
 ## Repository and plugin rename (26.9.7.62)
 
 The repository is `adriancarlson/cdol_health`. The application plugin is now

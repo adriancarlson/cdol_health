@@ -7,7 +7,7 @@ Each student medication should have one medication definition record.
 Required or expected medication properties:
 
 - Medication name, free-form text
-- Administered dose amount, supporting whole numbers and decimals
+- Fixed prescribed dose amount, supporting whole numbers and decimals, or an explicit Variable dose selection
 - Dose unit
 - Inventory unit
 - Frequency
@@ -29,7 +29,18 @@ Medication names remain free-form because the list of medications cannot be reli
 
 Normalize medication-name spacing before saving by trimming leading and trailing whitespace and replacing repeated internal whitespace with one space. Capitalize the first character, but preserve the remainder of the capitalization entered by the nurse; do not automatically apply full title case because medication names may contain intentional capitalization, abbreviations, numbers, or suffixes.
 
-Do not allow two medication definitions for the same student when the medication name, numeric dosage amount, and dose unit match. Compare names and units without case or extra-space differences, and compare dosage amounts numerically so values such as `10` and `10.0` match. When a duplicate is entered, disable Save and direct the nurse to use Add Inventory on the existing medication. The same medication name remains allowed when either the dosage amount or dose unit differs.
+Do not allow two medication definitions for the same student when the medication name, dose mode, and dose unit match,
+and their fixed numeric amounts match (or both are variable). Compare names and units without case or extra-space
+differences, and compare fixed amounts numerically so `10` and `10.0` match. Disable Save for duplicates and direct
+the nurse to Add Inventory on the existing medication. A fixed and variable definition are distinct.
+
+Variable dose hides the numeric amount, clears it on save, retains the dose unit, and displays `Varies · [unit]`.
+Medication Notes holds the authorized dosing instructions or plan reference. Actual Quantity Administered remains a
+required positive number and is entered independently on every administration. Frequency remains independent of mode.
+No numeric value, including 99, automatically means variable. Existing historical snapshots change only through an
+explicit, reason-required, append-only Given or Not Given correction. A dose-only correction must leave actual quantity,
+inventory balances, and daily resolution unchanged. Corrections affect only the selected event; no automatic bulk
+migration runs on installation or medication save.
 
 ## 2. Frequency
 

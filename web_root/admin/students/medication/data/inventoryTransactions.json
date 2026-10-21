@@ -15,6 +15,7 @@
                     'notes' VALUE u_student_med_inv_txn.notes,
                     'medication_name' VALUE u_student_med_inv_txn.medication_name,
                     'dose_amount' VALUE u_student_med_inv_txn.dose_amount,
+                    'variable_dose' VALUE u_student_med_inv_txn.variable_dose,
                     'dose_unit' VALUE u_student_med_inv_txn.dose_unit,
                     'inventory_unit' VALUE u_student_med_inv_txn.inventory_unit,
                     'route' VALUE u_student_med_inv_txn.route,

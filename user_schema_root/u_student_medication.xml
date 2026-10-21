@@ -5,6 +5,7 @@
     <extendedTable coreTable="students" dbTableName="u_student_medication" childName="u_student_medication" comment="Custom Medication Table">
         <field name="medication_name" type="String" length="250" />
         <field name="dose_amount" type="Double" />
+        <field name="variable_dose" type="Integer" />
         <field name="dose_unit" type="String" length="250" />
         <field name="inventory_unit" type="String" length="250" />
         <field name="inventory_baseline_quantity" type="Double" />
@@ -33,6 +34,7 @@
         <field name="notes" type="String" length="4000" />
         <field name="medication_name" type="String" length="250" />
         <field name="dose_amount" type="Double" />
+        <field name="variable_dose" type="Integer" />
         <field name="dose_unit" type="String" length="250" />
         <field name="inventory_unit" type="String" length="250" />
         <field name="route" type="String" length="250" />

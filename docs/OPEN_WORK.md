@@ -2,6 +2,12 @@
 
 ## Highest-priority implementation work
 
+- Install both CDOL Health 26.9.8.2 packages, then CDOL PSCB Custom Reports
+  26.10.1.1 on the test server. Follow `VARIABLE_DOSE.md`, particularly numeric
+  field clearing on PUT, original versus effective prescribed snapshots,
+  zero-inventory Given/Not Given corrections, report Oracle execution, and
+  authorized/denied/cross-school access. No automatic 99 conversion is included.
+
 - Validate the renamed CDOL Health and CDOL Health - Data Access 26.9.7.62
   packages in PowerSchool, including how the existing installations recognize
   the changed plugin names.
