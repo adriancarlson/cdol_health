@@ -10,7 +10,7 @@ and frequency remain independent. Existing numeric snapshots keep their original
 meaning until an individual Given/Not Given correction is saved. Dose-only corrections
 append audit history with zero inventory change. There is no automatic migration.
 
-The companion reports branch uses version 26.10.1.1 and must be installed after the
+The companion reports branch uses version 26.10.1.3 and must be installed after the
 Health schema update. Test-server schema API clearing, Oracle, authorization, and
 installed screens remain acceptance gates. See `VARIABLE_DOSE.md` for installation,
 record clarification, and test instructions. Pre-existing Health Forms changes below

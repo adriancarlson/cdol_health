@@ -1,7 +1,7 @@
 # Variable prescribed doses — 26.9.8.2
 
 Branch: `feature/variable-medication-dose` in `cdol_health` and the companion
-`cdol_pscb_custom_reports` repository (report plugin 26.10.1.1).
+`cdol_pscb_custom_reports` repository (report plugin 26.10.1.3).
 
 ## Install on the test server
 
@@ -11,7 +11,7 @@ Branch: `feature/variable-medication-dose` in `cdol_health` and the companion
    `variable_dose` Integer exists on `u_student_medication` and
    `u_student_med_inv_txn` before using the new pages or reports.
 3. Install **CDOL Health - Data Access 26.9.8.2**.
-4. Install **CDOL PSCB Custom Reports 26.10.1.1** after the Health schema.
+4. Install **CDOL PSCB Custom Reports 26.10.1.3** after the Health schema.
 5. Refresh cached pages/scripts. No record conversion runs during installation.
 
 The Health working tree already contained unrelated, uncommitted Health Forms
