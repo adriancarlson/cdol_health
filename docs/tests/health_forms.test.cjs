@@ -52,96 +52,98 @@ function fixture(file) {
 
 async function checkAttachments(page, method) {
     const trigger = method.locator('.health-document-link');
-    const rows = method.locator('.health-attachment-list li');
-    async function load(mode) {
-        if (!await method.locator('.health-attachment-panel').count()) {
-            await trigger.click();
-            await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().loading);
-        }
-        await page.evaluate(mode => { window.attachmentMode = mode; window.attachmentReads = []; }, mode);
-        await method.getByRole('button', { name: 'Refresh documents', exact: true }).click();
-        await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().loading);
+    const dialog = method.locator('dialog');
+    async function close() {
+        if (await dialog.count()) await method.getByRole('button', { name: 'Close document', exact: true }).click();
     }
-    assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/content/')).length), 0, 'discovery never requests document content');
+    async function load(mode, waitPreview = true) {
+        await close();
+        await page.evaluate(mode => { window.attachmentMode = mode; window.attachmentReads = []; }, mode);
+        await trigger.click();
+        await dialog.waitFor();
+        await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().loading);
+        if (waitPreview) await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().previewLoading);
+    }
+    assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/content/')).length), 0, 'discovery never requests content');
     const writesBefore = await page.evaluate(() => window.testWrites.length);
     const submitsBefore = await page.evaluate(() => window.formSubmissions.length);
+    const placement = await method.evaluate(el => {
+        const options = el.querySelector('.health-return-unselected').getBoundingClientRect();
+        const button = el.querySelector('.health-document-link').getBoundingClientRect();
+        return button.left >= options.right && Math.abs(button.y - options.y) < 20;
+    });
+    assert.equal(placement, true, 'button is to the right of the return options');
     await load('multiple');
-    assert.equal(await rows.count(), 2, 'all pages loaded; inaccessible, unrelated and duplicate files excluded');
-    assert.match(await rows.first().innerText(), /Example plan.pdf.*Uploaded: 09\/01\/2026/s);
-    assert.match(await rows.last().innerText(), /Example additional plan.png/);
-    assert.equal(await method.locator('iframe').count(), 0, 'no automatic plan selection');
+    assert.match(await dialog.innerText(), /Example additional plan.png/);
+    assert.match(await dialog.innerText(), /Uploaded: 09\/01\/2026 01:25 PM/);
+    assert.equal(await method.locator('iframe').count(), 1, 'newest upload automatically previews');
+    assert.equal(await dialog.evaluate(el => el.matches(':modal')), true, 'native modal makes background inert');
     const reads = await page.evaluate(() => window.attachmentReads);
     assert.equal(reads.filter(url => url.includes('/document?')).length, 2);
-    reads.filter(url => url.includes('/document')).forEach(url => {
+    assert.equal(reads.filter(url => url.includes('/content/')).length, 1);
+    assert.match(reads.find(url => url.includes('/content/')), /content\/102$/);
+    reads.filter(url => url.includes('/document?') || url.includes('/aggregates')).forEach(url => {
         const query = new URL(url, 'http://localhost').searchParams;
         assert.equal(query.get('entityid'), '123');
         assert.equal(query.get('entityname'), 'STCM');
         assert.match(query.get('q'), /category==\(9\)/);
     });
-    await rows.first().getByRole('button').click();
-    await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().previewLoading);
-    assert.equal(await method.locator('iframe').count(), 1, await method.innerText());
-    await method.locator('iframe').waitFor();
     const firstUrl = await method.locator('iframe').getAttribute('src');
     assert.match(firstUrl, /^blob:/);
-    assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), firstUrl), false, 'URL lives while preview is open');
-    await method.getByRole('button', { name: 'Close preview', exact: true }).click();
-    assert.equal(await method.locator('iframe').count(), 0);
+    const closeButton = dialog.getByRole('button', { name: 'Close document', exact: true });
+    await closeButton.focus();
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest('dialog')), true, 'keyboard focus stays in modal');
+    await closeButton.focus();
+    await page.keyboard.press('Escape');
+    assert.equal(await dialog.count(), 0);
     assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), firstUrl), true);
-
-    for (const mode of ['deniedContent', 'htmlContent', 'unsupportedContent', 'emptyContent']) {
-        await page.evaluate(mode => { window.attachmentMode = mode; }, mode);
-        await rows.first().getByRole('button').click();
-        await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().previewLoading);
-        assert.equal(await method.locator('iframe').count(), 0, mode + ' does not become a preview');
-        assert.match(await method.innerText(), /Open student attachments to/);
-    }
-    await load('single');
-    assert.equal(await rows.count(), 1, 'single-object documents and category responses supported');
-    await page.evaluate(() => { window.attachmentMode = 'pdfContent'; });
-    await rows.first().getByRole('button').click();
-    await method.locator('iframe').waitFor();
-    if (process.env.HEALTH_ATTACHMENT_SCREENSHOT) {
-        await method.screenshot({ path: process.env.HEALTH_ATTACHMENT_SCREENSHOT });
-    }
-    const secondUrl = await method.locator('iframe').getAttribute('src');
-    await method.getByRole('button', { name: 'Close documents', exact: true }).click();
-    assert.equal(await method.locator('.health-attachment-panel').count(), 0);
-    assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), secondUrl), true);
     assert.equal(await trigger.evaluate(el => el === document.activeElement), true);
-
-    await load('single');
-    await rows.first().getByRole('button').click();
+    for (const mode of ['deniedContent', 'htmlContent', 'unsupportedContent', 'emptyContent']) {
+        await load(mode);
+        assert.equal(await method.locator('iframe').count(), 0, mode + ' does not become a preview');
+        assert.match(await dialog.innerText(), /Open student attachments to/);
+    }
+    await load('pdfContent');
     await method.locator('iframe').waitFor();
+    if (process.env.HEALTH_ATTACHMENT_SCREENSHOT) await page.screenshot({ path: process.env.HEALTH_ATTACHMENT_SCREENSHOT });
+    await page.setViewportSize({ width: 390, height: 700 });
+    const bounds = await dialog.boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390 && bounds.height <= 700, 'modal fits narrow viewport');
+    await page.setViewportSize({ width: 1280, height: 720 });
     const hiddenUrl = await method.locator('iframe').getAttribute('src');
     await page.evaluate(() => {
         window.mainVm.values['[students.u_student_additional_info]diabetes'] = '0';
         angular.element(document.querySelector('.cdol-health-forms')).scope().$apply();
     });
-    assert.equal(await method.locator('iframe').count(), 0, 'changing Diabetes to No removes the preview');
+    assert.equal(await dialog.count(), 0, 'disabling the section removes modal');
     assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), hiddenUrl), true);
     await page.evaluate(() => {
         window.mainVm.values['[students.u_student_additional_info]diabetes'] = '1';
         angular.element(document.querySelector('.cdol-health-forms')).scope().$apply();
     });
-
     for (const mode of ['empty', 'missingCategory', 'deniedList', 'loginResponse']) {
         await load(mode);
-        assert.equal(await rows.count(), 0);
-        assert.match(await method.innerText(), /No available Diabetes documents|Documents could not be loaded/);
-        assert.equal(await method.locator('.health-attachments-fallback').isVisible(), true);
+        // Exercise category failures without waiting for the normal 60-second cache expiry.
+        await method.evaluate(el => { const scope = angular.element(el).isolateScope(); scope.$apply(() => scope.loadDocuments(true)); });
+        await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().loading);
+        assert.equal(await method.locator('iframe').count(), 0);
+        assert.match(await dialog.innerText(), /No available Diabetes documents|Documents could not be loaded/);
+        assert.equal(await dialog.locator('.health-attachments-fallback').isVisible(), true);
     }
-    // Closing during a delayed response must not reopen a document or leak its URL.
-    await load('single');
-    await page.evaluate(() => { window.attachmentMode = 'delayedContent'; });
+    await close();
+    await page.evaluate(() => { window.attachmentMode = 'single'; });
+    await method.evaluate(el => { const scope = angular.element(el).isolateScope(); scope.$apply(() => scope.loadDocuments(true)); });
+    await method.locator('iframe').waitFor();
+    await close();
     const createdBefore = await page.evaluate(() => window.createdAttachmentUrls.length);
-    await rows.first().getByRole('button').click();
-    await method.getByRole('button', { name: 'Close documents', exact: true }).click();
+    await load('delayedContent', false);
+    await close();
     await page.waitForFunction(count => window.createdAttachmentUrls.length > count && window.createdAttachmentUrls.every(url => window.revokedAttachmentUrls.includes(url)), createdBefore);
     assert.equal(await method.locator('iframe').count(), 0);
-    assert.equal(await page.evaluate(() => window.testWrites.length), writesBefore, 'attachment flow never writes student data');
-    assert.equal(await page.evaluate(() => window.formSubmissions.length), submitsBefore, 'preview buttons never submit the form');
-    console.log('PASS action plan attachments: pagination, permissions, category isolation, response shapes, previews, failures, URL cleanup, no writes');
+    assert.equal(await page.evaluate(() => window.testWrites.length), writesBefore);
+    assert.equal(await page.evaluate(() => window.formSubmissions.length), submitsBefore);
+    console.log('PASS attachment modal: newest across pages, date/time, placement, keyboard, responsive layout, permissions, cleanup, no writes');
 }
 
 async function checkAttachmentVisibility(page, method, field, category) {
@@ -177,17 +179,17 @@ async function checkAttachmentVisibility(page, method, field, category) {
         if (mode === 'deniedOnly') {
             await method.locator('.health-document-link').click();
             await page.waitForFunction(id => !angular.element(document.getElementById(id)).isolateScope().loading, await method.getAttribute('id'));
-            assert.equal(await method.locator('.health-attachment-list li').count(), 0, 'matching metadata does not grant download permission');
+            assert.equal(await method.evaluate(el => angular.element(el).isolateScope().documents.length), 0, 'matching metadata does not grant download permission');
+            await method.locator('dialog').waitFor();
             assert.equal(await method.locator('.health-attachments-fallback').isVisible(), true);
         }
         if (mode === 'single' && value === 'Return to school office') {
             const readsBeforeOpen = await page.evaluate(() => window.attachmentReads.length);
             await method.locator('.health-document-link').click();
-            await method.locator('.health-attachment-list li button').first().waitFor();
-            assert.equal(await page.evaluate(() => window.attachmentReads.length), readsBeforeOpen, 'opening reuses recent discovery metadata');
-            await method.locator('.health-attachment-list li button').first().click();
             await method.locator('iframe').waitFor();
-            await method.getByRole('button', { name: 'Close documents', exact: true }).click();
+            assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => !url.includes('/content/')).length), readsBeforeOpen, 'opening reuses recent discovery metadata');
+            await method.locator('iframe').waitFor();
+            await method.getByRole('button', { name: 'Close document', exact: true }).click();
         }
         if (mode === 'deniedList') {
             assert.equal(await method.locator('.health-attachments-fallback').isVisible(), true, 'failed discovery retains native-page access');
@@ -299,7 +301,7 @@ async function main() {
                     URL.revokeObjectURL = url => { window.revokedAttachmentUrls.push(url); revokeUrl(url); };
                     const doc = { id: 101, status: 'A', permission: { download: true }, documentLocation: 'L',
                         categories: { id: 9, name: 'Diabetes' }, name: 'Example plan.pdf',
-                        changeList: { whenChangedFormatted: '09/01/2026', whoChangedName: 'Example Guardian' } };
+                        changeList: { whenChangedFormatted: '09/01/2026 09:00 AM', whoChangedName: 'Example Guardian' } };
                     backend.whenGET(/\/ws\/districtcategory/).respond((m, url) => {
                         window.attachmentReads.push(url);
                         if (window.attachmentMode === 'loginResponse') return [200, '<html>Sign in</html>'];
@@ -340,7 +342,7 @@ async function main() {
                             categories: { id: window.attachmentCategory === 'Prescription' ? 15 : window.attachmentCategory === 'Non-Prescription' ? 14 : window.attachmentCategory === 'Dental' ? 13 : window.attachmentCategory === 'Seizure' ? 10 : window.attachmentCategory === 'Asthma/Severe Allergy' ? 11 : 9 } };
                         if (window.attachmentMode === 'multiple') {
                             documents = new URL(url, 'http://localhost').searchParams.get('page') === '2' ?
-                                [doc, { ...doc, id: 102, name: 'Example additional plan.png', categories: [doc.categories], changeList: [doc.changeList] }] :
+                                [doc, { ...doc, id: 102, name: 'Example additional plan.png', categories: [doc.categories], changeList: [{ ...doc.changeList, whenChangedFormatted: '09/01/2026 01:25 PM' }] }] :
                                 [doc, { ...doc, id: 103, permission: { download: false } }, { ...doc, id: 104, status: 'P' },
                                     { ...doc, id: 105, categories: { id: 10, name: 'Medical' } }, { ...doc, id: 106, documentLocation: 'R' },
                                     { ...doc, id: 107, changeList: { whoChangedName: 'PowerSchool Registration Signature' } }];
@@ -412,14 +414,14 @@ async function main() {
                 const before = await page.evaluate(() => ({ writes: window.testWrites.length, submits: window.formSubmissions.length }));
                 await checkAttachmentVisibility(page, otcMethod, null, 'Non-Prescription');
                 await otcMethod.getByRole('button', { name: 'View Non-Prescription documents' }).click();
-                await otcMethod.getByRole('button', { name: 'Example OTC authorization.pdf', exact: true }).waitFor();
-                assert.equal(await otcMethod.locator('.health-attachment-list li').count(), 1, 'OTC picker excludes unrelated categories');
-                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/document')).every(url =>
+                await otcMethod.locator('.health-attachment-details strong').filter({ hasText: 'Example OTC authorization.pdf' }).waitFor();
+                assert.equal(await otcMethod.evaluate(el => angular.element(el).isolateScope().documents.length), 1, 'OTC picker excludes unrelated categories');
+                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => (url.includes('/document?') || url.includes('/aggregates'))).every(url =>
                     new URL(url, 'http://localhost').searchParams.get('q').includes('category==(14)'))), true);
-                await otcMethod.getByRole('button', { name: 'Example OTC authorization.pdf', exact: true }).click();
+
                 await otcMethod.locator('iframe').waitFor();
                 const preview = await otcMethod.locator('iframe').getAttribute('src');
-                await otcMethod.getByRole('button', { name: 'Close documents', exact: true }).click();
+                await otcMethod.getByRole('button', { name: 'Close document', exact: true }).click();
                 assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), preview), true);
                 assert.deepEqual(await page.evaluate(() => ({ writes: window.testWrites.length, submits: window.formSubmissions.length })), before, 'OTC document access never saves the form');
                 assert.equal(await page.evaluate(() => window.mainVm.hasChanges()), false);
@@ -447,14 +449,14 @@ async function main() {
                 const before = await page.evaluate(() => ({ writes: window.testWrites.length, submits: window.formSubmissions.length }));
                 await checkAttachmentVisibility(page, method, null, 'Prescription');
                 await method.getByRole('button', { name: 'View Prescription documents' }).click();
-                await method.getByRole('button', { name: 'Example prescription authorization.pdf', exact: true }).waitFor();
-                assert.equal(await method.locator('.health-attachment-list li').count(), 1, 'Prescription category excludes OTC files');
-                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/document')).every(url =>
+                await method.locator('.health-attachment-details strong').filter({ hasText: 'Example prescription authorization.pdf' }).waitFor();
+                assert.equal(await method.evaluate(el => angular.element(el).isolateScope().documents.length), 1, 'Prescription category excludes OTC files');
+                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => (url.includes('/document?') || url.includes('/aggregates'))).every(url =>
                     new URL(url, 'http://localhost').searchParams.get('q').includes('category==(15)'))), true);
-                await method.getByRole('button', { name: 'Example prescription authorization.pdf', exact: true }).click();
+
                 await method.locator('iframe').waitFor();
                 const preview = await method.locator('iframe').getAttribute('src');
-                await method.getByRole('button', { name: 'Close documents', exact: true }).click();
+                await method.getByRole('button', { name: 'Close document', exact: true }).click();
                 assert.equal(await page.evaluate(url => window.revokedAttachmentUrls.includes(url), preview), true);
                 assert.deepEqual(await page.evaluate(() => ({ writes: window.testWrites.length, submits: window.formSubmissions.length })), before);
                 assert.equal(await page.evaluate(() => window.mainVm.hasChanges()), false);
@@ -704,11 +706,11 @@ async function main() {
                 assert.equal(await dentalMethod.locator('input').count(), 0, 'saved dental return method is display-only');
                 await checkAttachmentVisibility(page, dentalMethod, null, 'Dental');
                 await dentalMethod.getByRole('button', { name: 'View Dental documents' }).click();
-                await dentalMethod.getByRole('button', { name: 'Example dental report.pdf', exact: true }).waitFor();
-                assert.equal(await dentalMethod.locator('.health-attachment-list li').count(), 1, 'Dental picker excludes other categories');
-                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/document')).every(url =>
+                await dentalMethod.locator('.health-attachment-details strong').filter({ hasText: 'Example dental report.pdf' }).waitFor();
+                assert.equal(await dentalMethod.evaluate(el => angular.element(el).isolateScope().documents.length), 1, 'Dental picker excludes other categories');
+                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => (url.includes('/document?') || url.includes('/aggregates'))).every(url =>
                     new URL(url, 'http://localhost').searchParams.get('q').includes('category==(13)'))), true);
-                await dentalMethod.getByRole('button', { name: 'Example dental report.pdf', exact: true }).click();
+
                 await dentalMethod.locator('iframe').waitFor();
                 const dentalPreviewUrl = await dentalMethod.locator('iframe').getAttribute('src');
                 assert.equal(await page.locator('#healthDentalAgree').isVisible(), false);
@@ -743,9 +745,10 @@ async function main() {
                 await checkAttachmentVisibility(page, asthmaMethod, 'inhaler', 'Asthma/Severe Allergy');
                 await asthmaMethod.locator('.health-document-link').click();
                 await page.waitForFunction(() => !angular.element(document.querySelector('#asthmaAllergyPlanMethod')).isolateScope().loading);
-                assert.equal(await asthmaMethod.locator('.health-attachment-list li').count(), 3, 'either category qualifies and duplicate IDs appear once');
-                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/document')).every(url =>
+                assert.equal(await asthmaMethod.evaluate(el => angular.element(el).isolateScope().documents.length), 3, 'either category qualifies and duplicate IDs appear once');
+                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => (url.includes('/document?') || url.includes('/aggregates'))).every(url =>
                     new URL(url, 'http://localhost').searchParams.get('q').includes('category==(11,12)'))), true);
+                await asthmaMethod.getByRole('button', { name: 'Close document', exact: true }).click();
                 await setQuestion('EPIPEN', '1');
                 assert.equal(await page.locator('#asthmaAllergyPlanMethod').count(), 1, 'both Yes share one return method');
                 await setQuestion('INHALER', '0');
@@ -776,13 +779,14 @@ async function main() {
                 }));
                 await page.evaluate(() => { window.attachmentCategory = 'Seizure'; window.attachmentMode = 'single'; window.attachmentReads = []; });
                 await seizureMethod.getByRole('button', { name: 'View Seizure documents' }).click();
-                await seizureMethod.getByRole('button', { name: 'Example seizure plan.pdf', exact: true }).waitFor();
-                assert.equal(await seizureMethod.locator('.health-attachment-list li').count(), 1, 'seizure picker excludes Diabetes documents');
-                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => url.includes('/document')).every(url =>
+                await seizureMethod.locator('.health-attachment-details strong').filter({ hasText: 'Example seizure plan.pdf' }).waitFor();
+                assert.equal(await seizureMethod.evaluate(el => angular.element(el).isolateScope().documents.length), 1, 'seizure picker excludes Diabetes documents');
+                assert.equal(await page.evaluate(() => window.attachmentReads.filter(url => (url.includes('/document?') || url.includes('/aggregates'))).every(url =>
                     new URL(url, 'http://localhost').searchParams.get('q').includes('category==(10)'))), true);
-                await seizureMethod.getByRole('button', { name: 'Example seizure plan.pdf', exact: true }).click();
+
                 await seizureMethod.locator('iframe').waitFor();
                 const seizurePreviewUrl = await seizureMethod.locator('iframe').getAttribute('src');
+                await seizureMethod.getByRole('button', { name: 'Close document', exact: true }).click();
                 await setQuestion('DIABETES', '1');
                 assert.equal(await page.locator('#diabetesPlanMethod').isVisible(), true, 'both plans can appear together');
                 assert.equal(await seizureMethod.isVisible(), true);
@@ -825,18 +829,25 @@ async function main() {
                     assert.equal(await diabetesMethod.locator('.health-return-value').innerText(), method || 'Not recorded');
                     const documentLink = diabetesMethod.locator('.health-attachments-fallback');
                     await page.waitForFunction(() => !angular.element(document.querySelector('#diabetesPlanMethod')).isolateScope().checkingDocuments);
-                    assert.equal(await documentLink.count(), 1, 'matching Diabetes document also qualifies non-Upload choices');
+                    assert.equal(await diabetesMethod.locator('.health-document-link').count(), 1, 'matching Diabetes document also qualifies non-Upload choices');
                     if (method === 'Upload') {
+                        await diabetesMethod.locator('.health-document-link').click();
+                        await diabetesMethod.locator('dialog').waitFor();
                         assert.equal(await documentLink.getAttribute('href'), '/admin/students/studentattachments.html?frn=001123');
                         assert.equal(await documentLink.getAttribute('target'), '_blank');
                         assert.equal(await documentLink.getAttribute('rel'), 'noopener');
                         assert.equal(await diabetesMethod.locator('.health-document-link img').getAttribute('src'), '/images/cdol_health_log/bc-document-icon.png');
+                        await diabetesMethod.getByRole('button', { name: 'Close document', exact: true }).click();
+                        await page.evaluate(() => { window.attachmentReads = []; });
                         await checkAttachments(page, diabetesMethod);
+                        await diabetesMethod.locator('.health-document-link').click();
+                        await diabetesMethod.locator('dialog').waitFor();
                         await page.context().route('http://localhost/admin/students/studentattachments.html?frn=001123', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Example student attachments</h1>' }));
                         const [attachmentPage] = await Promise.all([page.waitForEvent('popup'), documentLink.click()]);
                         await attachmentPage.waitForURL('http://localhost/admin/students/studentattachments.html?frn=001123');
                         assert.equal(await attachmentPage.evaluate(() => window.opener), null);
                         await attachmentPage.close();
+                        await diabetesMethod.getByRole('button', { name: 'Close document', exact: true }).click();
                         await page.context().unroute('http://localhost/admin/students/studentattachments.html?frn=001123');
                     }
                 }

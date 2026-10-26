@@ -8,6 +8,13 @@
   zero-inventory Given/Not Given corrections, report Oracle execution, and
   authorized/denied/cross-school access. No automatic 99 conversion is included.
 
+- Install CDOL CSS 26.9.1.1, then both CDOL Health 26.9.8.1 packages. Verify
+  document buttons beside the return options, newest-upload selection (including
+  same-day times and multiple pages), upload date/time, PDF/image previews, native
+  Attachments navigation, Close document/Escape, and authorized/denied staff in
+  Health History and Medical Authorization. Test actual PowerSchool timestamps;
+  browser fixtures do not establish live content authorization or viewer behavior.
+
 - Validate the renamed CDOL Health and CDOL Health - Data Access 26.9.7.62
   packages in PowerSchool, including how the existing installations recognize
   the changed plugin names.

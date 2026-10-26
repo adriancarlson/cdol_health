@@ -57,6 +57,20 @@ async function main() {
             backend.flush();
             check(rejected, 'failed category lookup is rejected and can be retried');
 
+            // Native metadata order is alphabetical; newest selection must use upload times.
+            backend.expectGET(/\/document\/aggregates/).respond(200, { documentAggregates: { count: 6, time: 123456789 } });
+            backend.expectGET(/\/document\?/).respond(200, { documents: { documentList: [
+                [1, '12/31/2025 11:59 PM'], [2, '01/01/2026 12:00 AM'],
+                [3, '01/01/2026 12:00 PM'], [4, '01/01/2026 12:00 PM'],
+                [99, ''], [100, 'Unavailable']
+            ].map(([id, uploaded]) => ({ id, name: 'Example ' + id, status: 'A',
+                categories: { id: 9 }, permission: { download: true },
+                changeList: { whenChangedFormatted: uploaded } })) } });
+            let ordered;
+            attachments.find('001123', 'Diabetes').then(result => { ordered = result.documents.map(doc => doc.id); });
+            backend.flush();
+            check(JSON.stringify(ordered) === '[4,3,2,1,100,99]', 'upload ordering handles years, noon, midnight, ties, and missing dates');
+
             const api = injector.get('prescriptionApi');
             const endpoint = '/admin/students/health/data/medicationDoseUnits.json';
             const options = Array.from({ length: 105 }, (_, i) => ({ code: 'unit' + i, displayvalue: 'Unit ' + i, uidisplayorder: 105 - i }));
@@ -90,6 +104,7 @@ async function main() {
                         if (deferNext) { deferNext = false; delayed = $q.defer(); return delayed.promise; }
                         return $q.when({ hasMatches: true, documents: [{ id: frn, name: category, uploaded: 'Today' }] });
                     },
+                    preview: () => $q.when('blob:test-preview'),
                     release: () => {}
                 };
             }]);

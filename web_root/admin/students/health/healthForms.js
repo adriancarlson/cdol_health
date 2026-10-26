@@ -122,6 +122,14 @@ define(['angular', 'components/shared/index'], function (angular) {
                 (!doc.documentLocation || doc.documentLocation === 'L') &&
                 change.whoChangedName !== 'PowerSchool Registration Signature';
         }
+        function uploadTime(value) {
+            // Use the native US-formatted upload date, including its time when supplied.
+            var parts = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i.exec(String(value || '').trim());
+            if (!parts) { return -Infinity; }
+            var hour = Number(parts[4] || 0);
+            if (parts[7]) { hour = hour % 12 + (parts[7].toUpperCase() === 'PM' ? 12 : 0); }
+            return new Date(Number(parts[3]), Number(parts[1]) - 1, Number(parts[2]), hour, Number(parts[5] || 0), Number(parts[6] || 0)).getTime();
+        }
         function find(frn, categoryName, refresh) {
             if (!/^001\d+$/.test(frn || '') || !categoryName) { return $q.reject(new Error('Student attachment context is unavailable.')); }
             var params = { entityname: 'STCM', entityid: frn.substring(3) };
@@ -155,10 +163,15 @@ define(['angular', 'components/shared/index'], function (angular) {
                                     seen[doc.id] = true;
                                     var change = list(doc.changeList)[0] || {};
                                     documents.push({ id: doc.id, name: doc.name || 'Untitled document',
-                                        uploaded: change.whenChangedFormatted || 'Not available' });
+                                        uploaded: change.whenChangedFormatted || 'Not available',
+                                        uploadedTime: uploadTime(change.whenChangedFormatted) });
                                 }
                             });
-                            return number * params.pagesize < count ? page(number + 1) : { documents: documents, hasMatches: hasMatches };
+                            if (number * params.pagesize < count) { return page(number + 1); }
+                            documents.sort(function (a, b) {
+                                return (b.uploadedTime - a.uploadedTime) || (Number(b.id) - Number(a.id));
+                            });
+                            return { documents: documents, hasMatches: hasMatches };
                         });
                     }
                     return page(1);
@@ -184,36 +197,43 @@ define(['angular', 'components/shared/index'], function (angular) {
     }]);
 
     // Display the parent's answer without posting or modifying it.
-    app.directive('healthParentReturn', ['healthAttachments', '$sce', '$q', function (attachments, $sce, $q) {
+    app.directive('healthParentReturn', ['healthAttachments', '$sce', '$q', '$timeout', function (attachments, $sce, $q, $timeout) {
         return {
             scope: { method: '@healthParentReturn', returnOptions: '=?', attachmentUrl: '@?', attachmentCategory: '@?', attachmentCategories: '@?', attachmentFrn: '@?', attachmentEnabled: '=?' },
             template: '<div class="health-parent-return" role="group" aria-label="Parent/Guardian\'s Stated Return Method">' +
                 '<span class="health-return-value" ng-bind="method || \'Not recorded\'"></span>' +
-                '<span class="health-return-unselected" ng-repeat="option in (returnOptions || [\'Upload\', \'Return to school office\']) track by $index" ng-if="method !== option" ng-bind="option"></span></div>' +
+                '<span class="health-return-unselected" ng-repeat="option in (returnOptions || [\'Upload\', \'Return to school office\']) track by $index" ng-if="method !== option" ng-bind="option"></span>' +
                 '<div class="health-parent-attachment" ng-if="attachmentUrl && attachmentEnabled !== false && (method === \'Upload\' || hasMatches || lookupFailed || opened)">' +
-                '<button class="health-document-link" ng-if="method === \'Upload\' || hasMatches" type="button" ng-click="loadDocuments()" ng-disabled="loading" aria-expanded="{{!!opened}}">' +
+                '<button class="health-document-link" ng-if="method === \'Upload\' || hasMatches" type="button" ng-click="loadDocuments()" ng-disabled="loading" aria-haspopup="dialog" aria-expanded="{{!!opened}}">' +
                 '<img src="/images/cdol_health_log/bc-document-icon.png" alt="" width="24" height="24">' +
                 '<span>View {{attachmentCategory}} documents</span></button>' +
+                '<a class="health-attachments-fallback" ng-if="lookupFailed" ng-href="{{attachmentUrl}}" target="_blank" rel="noopener">Open student attachments</a>' +
+                '<span ng-if="lookupFailed" role="status">Document availability could not be checked.</span></div></div>' +
+                '<dialog class="health-attachment-panel" ng-if="opened" aria-label="{{attachmentCategory}} document preview" aria-modal="true" ng-keydown="modalKeydown($event)">' +
+                '<div class="health-attachment-heading"><strong>{{attachmentCategory}} document</strong>' +
+                '<button type="button" ng-click="closeDocuments(true)" autofocus>Close document</button></div>' +
+                '<div class="health-attachment-details" ng-if="previewName"><strong ng-bind="previewName"></strong>' +
+                '<span>Uploaded: <span ng-bind="previewUploaded"></span></span></div>' +
                 '<a class="health-attachments-fallback" ng-href="{{attachmentUrl}}" target="_blank" rel="noopener">Open student attachments</a>' +
-                '<span ng-if="lookupFailed" role="status">Document availability could not be checked.</span></div>' +
-                '<section class="health-attachment-panel" ng-if="opened" aria-label="Action Plan documents" ng-keydown="$event.keyCode === 27 && closeDocuments(true)">' +
-                '<div class="health-attachment-heading"><strong>{{attachmentCategory}} documents</strong>' +
-                '<button type="button" ng-click="loadDocuments(true)" ng-disabled="loading">Refresh documents</button>' +
-                '<button type="button" ng-click="closeDocuments(true)">Close documents</button></div>' +
                 '<p role="status" aria-live="polite" ng-if="loading || message">{{loading ? "Loading documents..." : message}}</p>' +
-                '<ul class="health-attachment-list" ng-if="documents.length"><li ng-repeat="document in documents track by document.id">' +
-                '<button type="button" ng-click="previewDocument(document)" ng-disabled="previewLoading" ng-bind="document.name"></button>' +
-                '<span>Uploaded: <span ng-bind="document.uploaded"></span></span></li></ul>' +
                 '<p role="status" aria-live="polite" ng-if="previewLoading || previewMessage">{{previewLoading ? "Loading preview..." : previewMessage}}</p>' +
-                '<div ng-if="previewUrl"><div class="health-attachment-heading"><strong ng-bind="previewName"></strong>' +
-                '<button type="button" ng-click="closePreview()">Close preview</button></div>' +
-                '<iframe class="health-attachment-preview" ng-src="{{previewUrl}}" title="Action Plan document preview"></iframe></div></section>',
+                '<iframe ng-if="previewUrl" class="health-attachment-preview" ng-src="{{previewUrl}}" title="{{attachmentCategory}} document preview"></iframe></dialog>',
             link: function (scope, element) {
-                var request = 0, discovery = 0, blobUrl, discovered;
+                var request = 0, discovery = 0, blobUrl, discovered, dialogTimer;
                 function categoryNames() { return scope.attachmentCategories ? scope.attachmentCategories.split(',').map(function (name) { return name.trim(); }) : scope.attachmentCategory; }
                 function release() { attachments.release(blobUrl); blobUrl = null; scope.previewUrl = null; }
-                scope.closePreview = function () { request++; release(); scope.previewLoading = false; scope.previewMessage = ''; };
+                scope.modalKeydown = function (event) {
+                    if (event.keyCode !== 9) { return; }
+                    var controls = event.currentTarget.querySelectorAll('button:not([disabled]), a[href], iframe');
+                    var first = controls[0], last = controls[controls.length - 1];
+                    if (event.shiftKey && event.target === first) { event.preventDefault(); last.focus(); }
+                    else if (!event.shiftKey && event.target === last) { event.preventDefault(); first.focus(); }
+                };
+                scope.closePreview = function () { request++; release(); scope.previewLoading = false; scope.previewMessage = ''; scope.previewName = ''; scope.previewUploaded = ''; };
                 scope.closeDocuments = function (restoreFocus) {
+                    $timeout.cancel(dialogTimer);
+                    var dialog = element[0].querySelector('dialog');
+                    if (dialog && dialog.open) { dialog.close(); }
                     scope.closePreview(); scope.opened = false; scope.loading = false; scope.documents = [];
                     var button = element[0].querySelector('.health-document-link');
                     if (restoreFocus && button) { button.focus(); }
@@ -223,14 +243,25 @@ define(['angular', 'components/shared/index'], function (angular) {
                     scope.closePreview();
                     var current = ++request;
                     scope.opened = true; scope.loading = true; scope.documents = []; scope.message = '';
+                    dialogTimer = $timeout(function () {
+                        var dialog = element[0].querySelector('dialog');
+                        if (!scope.opened || !dialog || dialog.open) { return; }
+                        dialog.addEventListener('cancel', function (event) {
+                            event.preventDefault();
+                            scope.$apply(function () { scope.closeDocuments(true); });
+                        });
+                        dialog.showModal();
+                    });
                     var pending = !refresh && discovered && Date.now() < discovered.expires ?
                         $q.when(discovered.result) : attachments.find(scope.attachmentFrn, categoryNames(), refresh);
                     discovered = null;
                     pending.then(function (result) {
                         if (current !== request) { return; }
                         scope.documents = result.documents; scope.hasMatches = result.hasMatches; scope.lookupFailed = false;
-                        scope.message = result.documents.length ? 'Select a document to preview. The upload date does not establish the plan date.' :
+                        scope.loading = false;
+                        scope.message = result.documents.length ? '' :
                             'No available ' + scope.attachmentCategory + ' documents were found. Open student attachments to review the files.';
+                        if (result.documents.length) { scope.previewDocument(result.documents[0]); }
                     }, function () {
                         if (current === request) { scope.message = 'Documents could not be loaded. Open student attachments to review access and available files.'; }
                     }).finally(function () { if (current === request) { scope.loading = false; } });
@@ -239,7 +270,7 @@ define(['angular', 'components/shared/index'], function (angular) {
                     if (scope.documents.indexOf(document) === -1 || scope.previewLoading) { return; }
                     release();
                     var current = ++request;
-                    scope.previewLoading = true; scope.previewMessage = ''; scope.previewName = document.name;
+                    scope.previewLoading = true; scope.previewMessage = ''; scope.previewName = document.name; scope.previewUploaded = document.uploaded;
                     attachments.preview(document.id).then(function (url) {
                         if (current !== request) { attachments.release(url); return; }
                         blobUrl = url; scope.previewUrl = $sce.trustAsResourceUrl(url);
@@ -253,7 +284,7 @@ define(['angular', 'components/shared/index'], function (angular) {
                     var current = ++discovery;
                     scope.hasMatches = false; scope.lookupFailed = false; scope.checkingDocuments = false;
                     // Upload already qualifies. Other choices need a metadata-only lookup;
-                    // no document content is requested until the administrator selects it.
+                    // no document content is requested until the administrator opens the modal.
                     if (!scope.attachmentUrl || !scope.attachmentCategory || !scope.attachmentFrn ||
                             scope.attachmentEnabled === false || scope.method === 'Upload') { return; }
                     scope.checkingDocuments = true;
@@ -266,7 +297,7 @@ define(['angular', 'components/shared/index'], function (angular) {
                         if (current === discovery) { scope.lookupFailed = true; }
                     }).finally(function () { if (current === discovery) { scope.checkingDocuments = false; } });
                 });
-                scope.$on('$destroy', function () { request++; discovery++; discovered = null; release(); });
+                scope.$on('$destroy', function () { scope.closeDocuments(); discovery++; discovered = null; });
             }
         };
     }]);

@@ -1,5 +1,36 @@
 # Action Plan attachment access
 
+## Document preview modal (26.9.8.1)
+
+Local validation passed: the AngularJS browser suite with source and simulated
+PowerSchool field names, request-reuse/date-order tests, JavaScript syntax, XML,
+and diff checks. Browser console checks passed and the synthetic modal layout was
+visually inspected. All three installer ZIPs passed integrity and source-byte
+comparisons; this does not establish installed PowerSchool behavior.
+
+View document buttons now sit to the right of the saved return-method options.
+Clicking one opens a native modal dialog and automatically previews the most
+recent accessible upload in that section's categories. The dialog shows the
+filename, native upload date and time, Open student attachments (new tab), and
+Close document. Escape also closes it and returns focus to the button. The native
+modal keeps background controls inert; narrow screens allow the row to wrap.
+
+All metadata pages are loaded before sorting by the native US-formatted upload
+information. Known dates sort first; ties or unavailable dates use descending
+attachment ID. This selects a recent upload, not a clinically current plan.
+Existing category and download authorization checks, content-type checks,
+no-write behavior, and Blob URL cleanup remain in place. The attachments link
+also remains available on lookup/preview failure. Close and reopen refreshes
+metadata after any one-use discovery result has been consumed.
+
+Install CDOL CSS 26.9.1.1 before CDOL Health and CDOL Health - Data Access
+26.9.8.1. The application was already at 26.9.8 before this change; older entries
+below describe historical releases. Installed PowerSchool validation remains
+pending, including actual timestamp formatting and native PDF viewer behavior.
+
+The versioned inline-picker descriptions below are historical and superseded by
+this modal workflow.
+
 ## Request reuse and refresh (26.9.7.60)
 
 District category requests are shared within the page for 60 seconds, including
